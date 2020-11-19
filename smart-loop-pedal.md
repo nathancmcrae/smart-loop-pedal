@@ -16,8 +16,11 @@ I want a midi loop pedal. When I press it, it will listen to a pattern I play an
 - [x] basic pd library compilation
 - [ ] research data architecture
   - How will I store an impulse sequence?
-- [ ] Do basic MIDI recording and playback
+  - Are there libraries that will do my (d)alloc for me so I don't fuck it up?
+    - I don't have that much, probably I just want to allocate a single array and have an index into that.
+- [ ] do basic MIDI recording and playback
 - ...
 - [ ] write processing library
 - [ ] processing library testing setup
 - [ ] integration...
+
