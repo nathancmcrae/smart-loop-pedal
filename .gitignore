@@ -2,5 +2,5 @@
 .idea
 *.log
 tmp/
-.o
-.pd_linux
+*.o
+*.pd_linux
