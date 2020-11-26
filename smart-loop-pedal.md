@@ -8,7 +8,7 @@ I want a midi loop pedal. When I press it, it will listen to a pattern I play an
 
 - https://github.com/pure-data/externals-howto
 
-- Python for PD Externals: https://grrrr.org/research/software/py/
+- ~~Python for PD Externals: https://grrrr.org/research/software/py/~~
 
 ## Roadmap
 
