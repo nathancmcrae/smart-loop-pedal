@@ -11,7 +11,9 @@ typedef struct _midimock {
     t_float loop;
     t_float note;
     t_float vel;
-    t_outlet *note_out, *vel_out, *loop_ok_out;
+    t_outlet *note_out, *vel_out;
+    // 1 if loop is ready, 0 otherwise
+    t_outlet *loop_ok_out;
     sem_t busy;
 } t_midimock;
 
@@ -46,6 +48,7 @@ midimock_new(){
     // MIDI_Vel
     x->vel_out = outlet_new(&x->obj, &s_float);
     // Look_OK
+    x->loop_ok_out = outlet_new(&x->obj, &s_float);
 }
 
 void
