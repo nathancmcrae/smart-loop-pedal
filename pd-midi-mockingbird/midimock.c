@@ -1,4 +1,6 @@
 #include <m_pd.h>
+#include <stdbool.h>
+#include <semaphore.h>
 
 static t_class *midimock_class;
 
@@ -10,15 +12,18 @@ typedef struct _midimock {
     t_float note;
     t_float vel;
     t_outlet *note_out, *vel_out, *loop_ok_out;
-    bool busy;
+    sem_t busy;
 } t_midimock;
 
 void
 midimock_bang(t_midimock* obj){
-    // do what you want with the bang
-    // This will be trigered every N milliseconds
-    //   Will it be re-entrant if I just have a 'busy' flag in t_midimock that
-    //   I set when I start this function and clear when I finish it?
+    // don't run when re-entering
+    // I don't think this is what I need for re-entrancy
+    sem_wait(&obj->busy);
+
+    // do the stuff
+
+    sem_post(&obj->busy);
 }
 
 // I don't think we will receive floats from the active
