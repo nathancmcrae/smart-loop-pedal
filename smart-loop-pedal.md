@@ -24,3 +24,9 @@ I want a midi loop pedal. When I press it, it will listen to a pattern I play an
 - [ ] processing library testing setup
 - [ ] integration...
 
+## 2020-12-23
+
+When I have multiple inlets and they both receive float messages at the same time, how can I make sure that the 'hot' inlet will trigger using the correct value from the 'cold' inlet?
+
+If I have cold inlets, when the hot inlet is triggered (e.g. via a tick), how do I tell that the cold inlets have been updated other than that the values are different.
+  Could I set the cold inlet values to NaN when I process them?
