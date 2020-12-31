@@ -32,8 +32,9 @@ typedef struct _midimock {
     t_midibuffer buffer;
     t_inputs in_current;
     t_inputs in_previous;
-    t_outlet *note_out, *vel_out;
+    t_outlet *note_out, *velocity_out;
     // 1 if loop is ready, 0 otherwise
+    // not using this right now
     t_outlet *loop_ok_out;
     bool busy;
     // do we need to initialize this?
@@ -78,12 +79,19 @@ midimock_bang(t_midimock* obj){
             obj->playback_tick = obj->buffer.tick[0];
             obj->playback_index = 0;
         } else if(obj->playback_tick == obj->buffer.tick[obj->playback_index]){
+            // play this note
+            outlet_float(obj->note_out, obj->buffer.note[obj->playback_index]);
+            outlet_float(obj->velocity_out, obj->buffer.velocity[obj->playback_index]);
 
+            obj->playback_index++;
+            obj->playback_tick++;
+
+            // Loop
+            if(obj->playback_index >= BUFFER_LEN){
+                obj->playback_tick = obj->buffer.tick[0];
+                obj->playback_index = 0;
+            }
         }
-
-            // if obj->playback_index >= obj->buffer.index, we loop
-
-        obj->playback_tick++;
     }
 
     // end-of-function stuff
@@ -97,24 +105,35 @@ midimock_bang(t_midimock* obj){
 void*
 midimock_new(){
     t_midimock *x = (t_midimock *)pd_new(midimock_class);
-   
-    //  allocate data you need?
+
+    // Just initialize everything so that errors from bad indexing are consistent
+    for(int i = 0; i < BUFFER_LEN; i++){
+        x->buffer.note[i] = 0;
+        x->buffer.velocity[i] = 0;
+        x->buffer.tick[i] = 0;
+    }
+    x->buffer.index = 0;
+
+    x->busy = false;
+    x->tick = 0;
+    x->playback_tick = 0;
+    x->playback_index = 0;
+
     inlet_new(&x->obj, &x->obj.ob_pd, 0, 0);
     floatinlet_new(&x->obj, &x->in_current.listen);
     floatinlet_new(&x->obj, &x->in_current.loop);
     floatinlet_new(&x->obj, &x->in_current.note);
-    floatinlet_new(&x->obj, &x->in_current.vel);
+    floatinlet_new(&x->obj, &x->in_current.velocity);
 
-    // MIDI_Note
     x->note_out = outlet_new(&x->obj, &s_float);
-    // MIDI_Vel
-    x->vel_out = outlet_new(&x->obj, &s_float);
-    // Look_OK
+    x->velocity_out = outlet_new(&x->obj, &s_float);
     x->loop_ok_out = outlet_new(&x->obj, &s_float);
+
+    return (void *)x;
 }
 
 void
-midimock_startup(){
+midimock_setup(){
     midimock_class = class_new(
         gensym("midimock"),
         (t_newmethod)midimock_new,
