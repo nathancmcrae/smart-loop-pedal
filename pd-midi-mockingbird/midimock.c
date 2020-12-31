@@ -51,6 +51,7 @@ midimock_bang(t_midimock* obj){
     if(obj->busy) return;
     obj->busy = true;
     // done with start-of-function stuff
+    post("starting bang");
 
     // If we're listening, then record the MIDI note every time the inputs change.
     if(obj->in_current.listen){
@@ -70,6 +71,8 @@ midimock_bang(t_midimock* obj){
 
             obj->buffer.index++;
         }
+    } else if(obj->in_previous.listen) {
+        post("Recorded %d notes", obj->buffer.index);
     }
 
     // If we're looping, then
@@ -119,7 +122,6 @@ midimock_new(){
     x->playback_tick = 0;
     x->playback_index = 0;
 
-    inlet_new(&x->obj, &x->obj.ob_pd, 0, 0);
     floatinlet_new(&x->obj, &x->in_current.listen);
     floatinlet_new(&x->obj, &x->in_current.loop);
     floatinlet_new(&x->obj, &x->in_current.note);
