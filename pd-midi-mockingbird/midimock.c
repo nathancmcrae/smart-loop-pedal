@@ -71,6 +71,7 @@ midimock_bang(t_midimock* obj){
             obj->buffer.index++;
         }
     } else if(obj->in_previous.listen) {
+
         post("Recorded %d notes", obj->buffer.index);
         for(int i = 0; i < obj->buffer.index; i++){
             post("%d: %f, %f, %d",
@@ -94,8 +95,8 @@ midimock_bang(t_midimock* obj){
                  obj->buffer.note[obj->playback_index],
                  obj->buffer.velocity[obj->playback_index],
                  obj->buffer.tick[obj->playback_index]);
-            outlet_float(obj->note_out, obj->buffer.note[obj->playback_index]);
             outlet_float(obj->velocity_out, obj->buffer.velocity[obj->playback_index]);
+            outlet_float(obj->note_out, obj->buffer.note[obj->playback_index]);
 
             obj->playback_index++;
 
