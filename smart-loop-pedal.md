@@ -30,3 +30,11 @@ When I have multiple inlets and they both receive float messages at the same tim
 
 If I have cold inlets, when the hot inlet is triggered (e.g. via a tick), how do I tell that the cold inlets have been updated other than that the values are different.
   Could I set the cold inlet values to NaN when I process them?
+
+## 2021-01-01
+
+Build and run in the correct environment
+
+```bash
+make && pd -alsamidi -midiindev 1 -midioutdev 1 -lib midimock.pd_linux mockingbird-test.pd
+```
