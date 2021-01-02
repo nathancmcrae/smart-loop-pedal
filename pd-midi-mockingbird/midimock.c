@@ -51,7 +51,6 @@ midimock_bang(t_midimock* obj){
     if(obj->busy) return;
     obj->busy = true;
     // done with start-of-function stuff
-    post("starting bang");
 
     // If we're listening, then record the MIDI note every time the inputs change.
     if(obj->in_current.listen){
@@ -73,28 +72,45 @@ midimock_bang(t_midimock* obj){
         }
     } else if(obj->in_previous.listen) {
         post("Recorded %d notes", obj->buffer.index);
+        for(int i = 0; i < obj->buffer.index; i++){
+            post("%d: %f, %f, %d",
+                 i,
+                 obj->buffer.note[i],
+                 obj->buffer.velocity[i],
+                 obj->buffer.tick[i]);
+        }
     }
 
     // If we're looping, then
     if(obj->in_current.loop){
 
         if(!obj->in_previous.loop){
-            obj->playback_tick = obj->buffer.tick[0];
+            obj->playback_tick = obj->buffer.tick[0] - 1;
             obj->playback_index = 0;
         } else if(obj->playback_tick == obj->buffer.tick[obj->playback_index]){
             // play this note
+            post("Play note %d: %f, %f, %d",
+                 obj->playback_index,
+                 obj->buffer.note[obj->playback_index],
+                 obj->buffer.velocity[obj->playback_index],
+                 obj->buffer.tick[obj->playback_index]);
             outlet_float(obj->note_out, obj->buffer.note[obj->playback_index]);
             outlet_float(obj->velocity_out, obj->buffer.velocity[obj->playback_index]);
 
             obj->playback_index++;
-            obj->playback_tick++;
+
+            post("obj->playback_index: %d", obj->playback_index);
+            post("obj->buffer.index: %d", obj->buffer.index);
 
             // Loop
-            if(obj->playback_index >= BUFFER_LEN){
-                obj->playback_tick = obj->buffer.tick[0];
+            if(obj->playback_index >= obj->buffer.index){
+                post("Trying to loop");
+                obj->playback_tick = obj->buffer.tick[0] - 1;
                 obj->playback_index = 0;
             }
         }
+
+        obj->playback_tick++;
     }
 
     // end-of-function stuff
