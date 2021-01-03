@@ -38,3 +38,16 @@ Build and run in the correct environment
 ```bash
 make && pd -alsamidi -midiindev 1 -midioutdev 1 -lib midimock.pd_linux mockingbird-test.pd
 ```
+
+## 2021-01-02
+
+pd-lib-builder generated compilation commands:
+
+```bash
+cc -DPD -I "/usr/include/pd" -DUNIX  -fPIC  -Wall -Wextra -Wshadow -Winline -Wstrict-aliasing -O3 -ffast-math -funroll-loops -fomit-frame-pointer -march=core2 -mfpmath=sse -msse -msse2 -msse3 -o midimock.o -c midimock.c
+cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags    -o midimock.pd_linux midimock.o  -lc -lm
+```
+
+## 2021-01-03
+
+zig branch still isn't getting past setup. At least try gdb or maybe ltrace to see what's going on. Then if nothing maybe give up and go back to c.
