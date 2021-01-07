@@ -51,3 +51,43 @@ cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags    -o midimo
 ## 2021-01-03
 
 zig branch still isn't getting past setup. At least try gdb or maybe ltrace to see what's going on. Then if nothing maybe give up and go back to c.
+
+## 2021-01-06
+
+Trying to see if I can use zig code with a c shim. Modifying midimock to test it.
+
+when trying to load midimock with zigimock:
+
+```
+midimock.pd_linux: can't load library
+/home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/pd-midi-mockingbird/midimock.pd_linux: /home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/pd-midi-mockingbird/midimock.pd_linux: undefined symbol: __muloti4
+ midimock
+... couldn't create
+```
+
+```bash
+$ objdump -x midimock.pd_linux | grep *UND*
+0000000000000000         *UND*	0000000000000000              gensym
+0000000000000000  w      *UND*	0000000000000000              _ITM_deregisterTMCloneTable
+0000000000000000         *UND*	0000000000000000              pd_new
+0000000000000000         *UND*	0000000000000000              class_addbang
+0000000000000000       F *UND*	0000000000000000              __assert_fail@@GLIBC_2.2.5
+0000000000000000       F *UND*	0000000000000000              memset@@GLIBC_2.2.5
+0000000000000000       F *UND*	0000000000000000              __tls_get_addr@@GLIBC_2.3
+0000000000000000  w      *UND*	0000000000000000              __gmon_start__
+0000000000000000       F *UND*	0000000000000000              memcpy@@GLIBC_2.14
+0000000000000000         *UND*	0000000000000000              __muloti4
+0000000000000000         *UND*	0000000000000000              __zig_probe_stack
+0000000000000000         *UND*	0000000000000000              s_float
+0000000000000000         *UND*	0000000000000000              post
+0000000000000000         *UND*	0000000000000000              outlet_new
+0000000000000000         *UND*	0000000000000000              class_new
+0000000000000000         *UND*	0000000000000000              outlet_float
+0000000000000000  w      *UND*	0000000000000000              _ITM_registerTMCloneTable
+0000000000000000         *UND*	0000000000000000              floatinlet_new
+0000000000000000  w    F *UND*	0000000000000000              __cxa_finalize@@GLIBC_2.2.5
+```
+
+What else do I need to link against?
+
+Maybe try creating a zig executable and seeing if these zig-related symbols are defined there.

@@ -1,48 +1,6 @@
-#include <assert.h>
-#include <m_pd.h>
-#include <stdbool.h>
-#include <semaphore.h>
-
-#define BUFFER_LEN 500
+#include "midimock.h"
 
 static t_class *midimock_class;
-
-// Note: the first note value will be invalid (-1) because this way the tick index
-// can be aligned with the note/velocity index corresponding to the tick at which
-// that note/velocity was recorded.
-//
-// The first entry in the buffer records the tick at which listening began.
-typedef struct _midibuffer {
-    t_float note[BUFFER_LEN];
-    t_float velocity[BUFFER_LEN];
-    long tick[BUFFER_LEN];
-    // index of the first free slot
-    int index;
-} t_midibuffer;
-
-typedef struct _inputs {
-    t_float listen;
-    t_float loop;
-    t_float note;
-    t_float velocity;
-} t_inputs;
-
-typedef struct _midimock {
-    t_object obj;
-    t_midibuffer buffer;
-    t_inputs in_current;
-    t_inputs in_previous;
-    t_outlet *note_out, *velocity_out;
-    // 1 if loop is ready, 0 otherwise
-    // not using this right now
-    t_outlet *loop_ok_out;
-    bool busy;
-    // do we need to initialize this?
-    long tick;
-    long playback_tick;
-    // the index in the buffer that we are next going to play from
-    int playback_index;
-} t_midimock;
 
 void
 midimock_bang(t_midimock* obj){
@@ -112,6 +70,11 @@ midimock_bang(t_midimock* obj){
         }
 
         obj->playback_tick++;
+    }
+
+    // test zig integration
+    if(bar(obj->tick % 6)){
+        post("ziggy time");
     }
 
     // end-of-function stuff
