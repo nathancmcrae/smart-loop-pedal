@@ -91,3 +91,26 @@ $ objdump -x midimock.pd_linux | grep *UND*
 What else do I need to link against?
 
 Maybe try creating a zig executable and seeing if these zig-related symbols are defined there.
+
+# 2021-01-22
+
+Try adding these zig compilation options:
+
+```bash
+zig build-lib -fno-stack-check -fcompiler-rt ...
+```
+  
+And, since I was dumb enough to leave out the original compilation command:
+
+```bash
+zig build-lib -DPD -DUNIX -fPIC -rpath "\$ORIGIN" zigimock.zig 
+```
+
+Really I should be doing this in a Makefile, but I feel unfamiliar enough with the tooling that I'm not yet ready to abstract away from it.
+
+Oh geez, I didn't even record the command I used to link in zigimock. ugh.
+
+```bash
+cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags    -o midimock.pd_linux midimock.o libzigimock.a  -lc -lm                                                                             
+
+```
