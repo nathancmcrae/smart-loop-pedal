@@ -2,40 +2,40 @@
 
 I want a midi loop pedal. When I press it, it will listen to a pattern I play and then will start repeating it as soon as I release it.
 
-- [ ] Potential problem: with long enough sequences that don't actually have any commonality, there could be quite a bit of overlap. How much of a problem is this? Test.
+* [ ] Potential problem: with long enough sequences that don't actually have any commonality, there could be quite a bit of overlap. How much of a problem is this? Test.
 
 ## References
 
-- https://github.com/pure-data/externals-howto
-
-- ~~Python for PD Externals: https://grrrr.org/research/software/py/~~
+* https://github.com/pure-data/externals-howto
+* ~~Python for PD Externals: https://grrrr.org/research/software/py/~~
 
 ## Roadmap
 
-- [x] concept testing in python
-- [x] basic pd library compilation
-- [ ] research data architecture
-  - How will I store an impulse sequence?
-  - Are there libraries that will do my (d)alloc for me so I don't fuck it up?
-    - I don't have that much, probably I just want to allocate a single array and have an index into that.
-- [ ] do basic MIDI recording and playback
-- ...
-- [ ] write processing library
-- [ ] processing library testing setup
-- [ ] integration...
+* [x] concept testing in python
+* [x] basic pd library compilation
+* [x] research data architecture
+  * How will I store an impulse sequence?
+  * Are there libraries that will do my (d)alloc for me so I don't fuck it up?
+    * I don't have that much, probably I just want to allocate a single array and have an index into that.
+* [x] do basic MIDI recording and playback
+* [x] Compile zig lib with a C shim
+* [ ] Port midimock to zig
+* ...
+* [ ] write processing library
+* [ ] processing library testing setup
+* [ ] integration...
 
 ## 2020-12-23
 
 When I have multiple inlets and they both receive float messages at the same time, how can I make sure that the 'hot' inlet will trigger using the correct value from the 'cold' inlet?
 
-If I have cold inlets, when the hot inlet is triggered (e.g. via a tick), how do I tell that the cold inlets have been updated other than that the values are different.
-  Could I set the cold inlet values to NaN when I process them?
+If I have cold inlets, when the hot inlet is triggered (e.g. via a tick), how do I tell that the cold inlets have been updated other than that the values are different. Could I set the cold inlet values to NaN when I process them?
 
 ## 2021-01-01
 
 Build and run in the correct environment
 
-```bash
+```
 make && pd -alsamidi -midiindev 1 -midioutdev 1 -lib midimock.pd_linux mockingbird-test.pd
 ```
 
@@ -43,7 +43,7 @@ make && pd -alsamidi -midiindev 1 -midioutdev 1 -lib midimock.pd_linux mockingbi
 
 pd-lib-builder generated compilation commands:
 
-```bash
+```
 cc -DPD -I "/usr/include/pd" -DUNIX  -fPIC  -Wall -Wextra -Wshadow -Winline -Wstrict-aliasing -O3 -ffast-math -funroll-loops -fomit-frame-pointer -march=core2 -mfpmath=sse -msse -msse2 -msse3 -o midimock.o -c midimock.c
 cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags    -o midimock.pd_linux midimock.o  -lc -lm
 ```
@@ -60,12 +60,12 @@ when trying to load midimock with zigimock:
 
 ```
 midimock.pd_linux: can't load library
-/home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/pd-midi-mockingbird/midimock.pd_linux: /home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/pd-midi-mockingbird/midimock.pd_linux: undefined symbol: __muloti4
+    /home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/pd-midi-mockingbird/midimock.pd_linux: /home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/pd-midi-mockingbird/midimock.pd_linux: undefined symbol: __muloti4
  midimock
 ... couldn't create
 ```
 
-```bash
+```
 $ objdump -x midimock.pd_linux | grep *UND*
 0000000000000000         *UND*	0000000000000000              gensym
 0000000000000000  w      *UND*	0000000000000000              _ITM_deregisterTMCloneTable
@@ -92,25 +92,35 @@ What else do I need to link against?
 
 Maybe try creating a zig executable and seeing if these zig-related symbols are defined there.
 
-# 2021-01-22
+## 2021-01-22
 
 Try adding these zig compilation options:
 
-```bash
+```
 zig build-lib -fno-stack-check -fcompiler-rt ...
 ```
-  
+
 And, since I was dumb enough to leave out the original compilation command:
 
-```bash
+```
 zig build-lib -DPD -DUNIX -fPIC -rpath "\$ORIGIN" zigimock.zig 
+```
+
+making the full command:
+
+```bash
+zig build-lib -fno-stack-check -fcompiler-rt -DPD -DUNIX -fPIC -rpath "\$ORIGIN" zigimock.zig 
 ```
 
 Really I should be doing this in a Makefile, but I feel unfamiliar enough with the tooling that I'm not yet ready to abstract away from it.
 
 Oh geez, I didn't even record the command I used to link in zigimock. ugh.
 
-```bash
+```
 cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags    -o midimock.pd_linux midimock.o libzigimock.a  -lc -lm                                                                             
 
 ```
+
+# 2021-01-23
+
+Instead of calling into my zig lib from the c shim, just register the lib function directly with pd.

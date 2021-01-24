@@ -29,7 +29,7 @@ typedef struct _inputs {
 } t_inputs;
 
 typedef struct _midimock {
-    t_object obj;
+    char obj[48];
     t_midibuffer buffer;
     t_inputs in_current;
     t_inputs in_previous;
@@ -46,5 +46,7 @@ typedef struct _midimock {
 } t_midimock;
 
 bool bar(int);
+
+void midimock_bang(t_midimock* obj);
 
 #endif // __MIDIMOCK_H_
