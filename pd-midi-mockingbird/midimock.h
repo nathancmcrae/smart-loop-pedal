@@ -18,7 +18,7 @@ typedef struct _midibuffer {
     t_float velocity[BUFFER_LEN];
     long tick[BUFFER_LEN];
     // index of the first free slot
-    int index;
+    uint index;
 } t_midibuffer;
 
 typedef struct _inputs {
@@ -42,7 +42,7 @@ typedef struct _midimock {
     long long tick;
     long long playback_tick;
     // the index in the buffer that we are next going to play from
-    int playback_index;
+    uint playback_index;
 } t_midimock;
 
 bool bar(int);
