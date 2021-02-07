@@ -109,7 +109,7 @@ zig build-lib -DPD -DUNIX -fPIC -rpath "\$ORIGIN" zigimock.zig
 making the full command:
 
 ```bash
-zig build-lib -fno-stack-check -fcompiler-rt -DPD -DUNIX -fPIC -rpath "\$ORIGIN" zigimock.zig 
+zig build-lib --library c -I . -I "/usr/include/pd" -fno-stack-check -fcompiler-rt -DPD -DUNIX -fPIC -rpath "\$ORIGIN" zigimock.zig
 ```
 
 Really I should be doing this in a Makefile, but I feel unfamiliar enough with the tooling that I'm not yet ready to abstract away from it.
