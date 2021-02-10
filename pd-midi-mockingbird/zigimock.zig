@@ -61,6 +61,8 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
                 obj.playback_index = 0;
             }
         }
+
+        obj.playback_tick = obj.playback_tick + 1;
     }
 
     obj.in_previous = obj.in_current;
