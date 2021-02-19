@@ -1,3 +1,6 @@
 [submodule "libsmartloop/zig-midi"]
 	path = libsmartloop/zig-midi
 	url = https://github.com/Hejsil/zig-midi.git
+[submodule "libsmartloop/midilib"]
+	path = libsmartloop/midilib
+	url = https://github.com/MarquisdeGeek/midilib.git
