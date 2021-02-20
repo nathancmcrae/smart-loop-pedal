@@ -19,7 +19,7 @@ I want a midi loop pedal. When I press it, it will listen to a pattern I play an
     * I don't have that much, probably I just want to allocate a single array and have an index into that.
 * [x] do basic MIDI recording and playback
 * [x] Compile zig lib with a C shim
-* [ ] Port midimock to zig
+* [x] Port midimock to zig
 * ...
 * [ ] write processing library
 * [ ] processing library testing setup
@@ -117,10 +117,20 @@ Really I should be doing this in a Makefile, but I feel unfamiliar enough with t
 Oh geez, I didn't even record the command I used to link in zigimock. ugh.
 
 ```
-cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags    -o midimock.pd_linux midimock.o libzigimock.a  -lc -lm                                                                             
+cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags -o midimock.pd_linux midimock.o libzigimock.a  -lc -lm                                                                             
 
 ```
 
 # 2021-01-23
 
 Instead of calling into my zig lib from the c shim, just register the lib function directly with pd.
+
+# 2021-02-20
+
+Compiling in midilib (TODO: use build.zig for this)
+
+```bash
+cd libsmartloop
+zig cc -c midilib/src/midifile.c -o midilib/src/midifile.o
+zig test midilib/src/midifile.o src/main.zig -I midilib/src -lc
+```

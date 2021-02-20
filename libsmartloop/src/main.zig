@@ -1,5 +1,6 @@
 const std = @import("std");
-const midi = @import("zig-midi");
+
+const midilib = @cImport(@cInclude("midifile.h"));
 
 const os = std.os;
 const Allocator = std.mem.Allocator;
@@ -19,11 +20,5 @@ pub fn readMidiFile(alloc: *Allocator) !void {
 
     const reader = file.reader;
 
-    const header = try midi.decode.fileHeader(reader);
-    
-    // const fileSize = try file.getEndPos();
-
-    // var buffer = try alloc.alloc(u8, fileSize);
-    // defer alloc.free(buffer);
-    // const bytesRead = try file.read(buffer[0..]);
+    const midi_file = midilib.midiFileCreate("test.mid", 1);   
 }
