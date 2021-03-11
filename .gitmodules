@@ -4,3 +4,6 @@
 [submodule "libsmartloop/midilib"]
 	path = libsmartloop/midilib
 	url = https://github.com/MarquisdeGeek/midilib.git
+[submodule "libsmartloop/mecha"]
+	path = libsmartloop/mecha
+	url = https://github.com/Hejsil/mecha.git
