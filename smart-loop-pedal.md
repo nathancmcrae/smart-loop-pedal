@@ -134,3 +134,7 @@ cd libsmartloop
 zig cc -c midilib/src/midifile.c -o midilib/src/midifile.o
 zig test midilib/src/midifile.o src/main.zig -I midilib/src -lc
 ```
+
+# 2021-03-01
+
+Decision: I will track note_offs by necessity, but for periodicity calculations I will only (or dominantly) use note_ons

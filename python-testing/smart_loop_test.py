@@ -1,5 +1,6 @@
 import scipy as sp
 import numpy as np
+import mido
 
 """
 This module contains utility functions for use with an automated midi loop 
@@ -229,3 +230,38 @@ def get_sequence_self_overlaps(x):
                     n[l] = n[l] + 1
         next_is.append(next_i)
     return shifts, next_is
+
+# Given a midi file, write out a plaintext version to another file.
+# The format of the output file is:
+# 
+#   <note-type>\t<note>\t<note-time>\t<note-velocity
+#   ...
+#
+# <note-type> : "note_on" | "note_off"
+# <note> : integer
+# <note-time> : integer in ms
+# <note-velocity> : [0,255]
+#
+# The note-on-times are assumed to be strictly monotonically increasing
+#
+# Note: this is only done with the first track
+def copy_midi_plaintext(in_filename, out_filename):
+    with open(out_filename, 'w') as out_file:
+        mf = mido.MidiFile(in_filename)
+        track = mf.tracks[0]
+        current_time = 0
+        
+        us_per_beat = 500000.0
+        seconds_per_tick = 1e-6 * us_per_beat / mf.ticks_per_beat
+ 
+        
+        for i in range(len(track)):
+            current_time = current_time + track[i].time
+
+            if(track[i].type == "note_on" or track[i].type == "note_off"):
+                out_file.write(
+                    "{}\t{}\t{}\t{}\n".format(
+                        track[i].type,
+                        track[i].note, 
+                        int(current_time * seconds_per_tick * 1000), 
+                        track[i].velocity))
