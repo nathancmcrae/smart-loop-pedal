@@ -103,6 +103,27 @@ pub fn glbi(list: []const u32, value: u32) u32 {
     return glbi_rec(list, value, ilow, ihigh);
 }
 
+/// Return the index of the minimum element of the list.
+/// If multiple elements are minimum, the first one is returned.
+/// If the list is empty, an error.EmptySequence is returned.
+fn min_index(list: []u32) !usize {
+    if(list.len == 0){
+        return error.EmptySequence;
+    }
+
+    var current_min: usize = 0;
+    var min_value = list[current_min];
+    for(list) |value, i| {
+        if(value < min_value){
+            current_min = i;
+            min_value = value;
+        }
+    }
+
+    std.debug.assert(current_min < list.len);
+    return current_min;
+} 
+
 pub const self_overlap_results = struct {
     s: []u32,
     i: []u32,
@@ -110,14 +131,15 @@ pub const self_overlap_results = struct {
 
 /// Given an impulse sequence, return a list of all shifts that would cause a shifted version
 /// of the sequence to have at least one overlap with the original sequence.
-pub fn get_sequence_self_overlaps(alloc: *Allocator, original: [] u32) !self_overlap_results {
+pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
     if(original.len == 0){
         return error.EmptySequence;
     }
     
     // n[i] is the index of the impulse in the original sequence nearest 'in front of' the ith
     // impulse of the shifted sequence. i.e. for the ith impulse of the shifted sequence, which
-    // impulse of the original sequence it will encounter next as the shifted sequence is shifted more.
+    // impulse of the original sequence it will encounter next as the shifted sequence is shifted
+    // more.
     var n = try alloc.alloc(u32, original.len);
     defer alloc.free(n);
 
@@ -145,10 +167,56 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: [] u32) !self_ove
     try next_is.ensureCapacity(2 * original.len);
     defer next_is.deinit();
 
-    var next_i = original.len;
+    // If you use more than 32 bits for your impulse sequence you deserve what you get.
+    if(original.len > std.math.maxInt(u32)){
+        return error.SequenceTooLarge;
+    }
+    var next_i: u32 = @intCast(u32, original.len);
 
     while(n[0] < original.len){
+        const k = @intCast(u32, try min_index(d));
+        const shift = d[k];
+
+        std.debug.assert(shift >= 0);
+        total_shift += shift;
+        try shifts.append(total_shift);
+
+        // Now that we know what the shift is, update n and d to reflect the new shifted sequence.
         
+        if(n[k] >= original.len - 1){
+            d[k] = std.math.maxInt(u32);
+            n[k] = @intCast(u32, original.len);
+            next_i = k;
+        } else {
+            d[k] = original[n[k] + 1] - original[n[k]];
+            n[k] += 1;
+        }
+
+        var i: u32 = 0;
+        while(i < d.len) : (i += 1) {
+            if(i == k or n[i] > original.len - 1) {
+                continue;
+            }
+
+            d[i] -= shift;
+            std.debug.assert(d[i] >= 0);
+
+            // If impulse i has same distance to next impulse as impulse k does, then we don't want
+            // to record a redundant shift value of the same amount. So increment the 'next' impulse
+            // for impulse i
+            if(d[i] == 0) {
+                if(n[i] >= original.len - 1){
+                    d[i] = std.math.maxInt(u32);
+                    n[i] = @intCast(u32, original.len);
+                    next_i = i;
+                } else {
+                    d[i] = original[n[i] + 1] - original[n[i]];
+                    n[i] = n[i] + 1;
+                }
+            }
+
+            try next_is.append(next_i);
+        }
     }
 
     const result: self_overlap_results = . {
@@ -167,6 +235,6 @@ test "empty sequence means no shifts" {
         std.testing.expect(err == error.EmptySequence);
     }
 
-    // const seq2 = []u32 {0};
-    // const result = get_sequence_self_overlaps(std.testing.allocator, seq2);
+    const seq2: []const u32 = &[_]u32 {0, 1, 2, 3};
+    const result = get_sequence_self_overlaps(std.testing.allocator, seq2);
 }
