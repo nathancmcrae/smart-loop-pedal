@@ -57,28 +57,30 @@ pub fn main() !void {
 }
 
 fn glbi_rec(list: []const u32, value: u32, ilow: u32, ihigh: u32) u32 {
-    std.debug.assert(0 <= ilow and ilow < list.len);
-    std.debug.assert(0 < ihigh and ihigh <= list.len);
+    const length: u32 = @intCast(u32, list.len);
+    
+    std.debug.assert(0 <= ilow and ilow < length);
+    std.debug.assert(0 < ihigh and ihigh <= length);
 
-    std.debug.assert(v >= list[ilow]);
-    std.debug.assert(v < list[ihigh - 1]);
+    std.debug.assert(value >= list[ilow]);
+    std.debug.assert(value < list[ihigh - 1]);
 
     if(ilow == ihigh - 2){
-        if(v == list[ilow + 1]){
+        if(value == list[ilow + 1]){
             return ilow + 1;
         } else {
             return ilow;
         }
     }
 
-    const i: u32 = std.math.floor((ilow + ihigh) / 2);
+    const i: u32 = (ilow + ihigh) / 2;
     std.debug.assert(i >= ilow);
     std.debug.assert(i < ihigh);
 
-    if(v >= list[i]){
-        return glbi_rec(list, v, i, ihigh);
+    if(value >= list[i]){
+        return glbi_rec(list, value, i, ihigh);
     } else {
-        return glbi_rec(list, v, ilow, i + 1);
+        return glbi_rec(list, value, ilow, i + 1);
     }
 }
 
@@ -88,19 +90,66 @@ test "glbi empty" {
 
 /// Given a list of values, and a target value, return the index of the greatest lower bound
 /// of 'value' in 'list'.
-/// Return -1 if value is less than all elements of the list.
-pub fn glbi(list: []const u32, value: u32) u32 {
-    ilow = 0;
-    ihigh = list.length;
+/// error if value is less than all elements of the list.
+pub fn glbi(list: []const u32, value: u32) ?u32 {
+    const length = @intCast(u32, list.len); 
+    
+    const ilow = 0;
+    const ihigh = length;
 
-    if(v < list[ilow]) {
-        return -1;
+    if(value < list[ilow]) {
+        return null;
     }
-    if(v >= list[list.len - 1]){
-        return list.len - 1;
+    if(value >= list[list.len - 1]){
+        return length - 1;
     }
 
     return glbi_rec(list, value, ilow, ihigh);
+}
+
+pub fn window_function(v: u32, w: u32, WINDOW_LEN: u32) u64 {
+    return std.math.max(0, 1 - 2 * std.math.abs(value - 2) / WINDOW_LEN);
+}
+
+// TODO: Should be named labelledSeqProduct
+// For each point in the shifted label sequence, get all points in the 
+// original sequence within the window. Then take the sum of the 
+// objective function between the shifted point and all the original 
+// points in its window that have the same label
+//
+//   *  *     * *    * **       Original sequence
+//      +     + +               Points in window
+//    |     V     |             Window for shifted point
+//       *  *     * *    * **   Shifted sequence
+pub fn labelled_seq_product(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
+    std.debug.assert(x.len == l.len);
+    std.debug.assert(x.len <= std.math.maxInt(u32));
+
+    const length: u32 = @intCast(u32, x.len);
+    var product: u64 = 0;
+
+    var i: usize = 0;
+    while(i < x.len) : ( i += 1 ) {
+        const v = x[i] + shift;
+
+        var window_start = (glbi(x, v - WINDOW_LEN/2) orelse -1) + 1;
+        window_start = std.math.min(std.math.max(0, window_start), length - 1);
+
+        std.debug.assert(window_start == length - 1 or x[window_start] >= v - WINDOW_LEN/2);
+        std.debug.assert(window_start == 0 or x[window_start - 1] <= v - WINDOW_LEN/2);
+
+        var window_end = (glbi(x, v + WINDOW_LEN/2) orelse -1) + 1;
+        window_end = std.math.min(x.len - 1, window_end);
+
+        std.debug.assert(window_end == 0 or x[window_end - 1] <= v + WINDOW_LEN/2);
+        std.debug.assert(window_end == x.len - 1 or x[window_end] > v + WINDOW_LEN/2);
+    }
+    return product;
+}
+
+test "empty labelled sequence product" {
+    const empty: []u32 = try std.testing.allocator.alloc(u32, 0);
+    const result = labelled_seq_product(empty, empty, 0, 0);
 }
 
 /// Return the index of the minimum element of the list.
@@ -171,7 +220,8 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     if(original.len > std.math.maxInt(u32)){
         return error.SequenceTooLarge;
     }
-    var next_i: u32 = @intCast(u32, original.len);
+    const length: u32 = @intCast(u32, original.len);
+    var next_i: u32 = length;
 
     while(n[0] < original.len){
         const k = @intCast(u32, try min_index(d));
@@ -185,7 +235,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         
         if(n[k] >= original.len - 1){
             d[k] = std.math.maxInt(u32);
-            n[k] = @intCast(u32, original.len);
+            n[k] = length;
             next_i = k;
         } else {
             d[k] = original[n[k] + 1] - original[n[k]];
@@ -207,7 +257,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
             if(d[i] == 0) {
                 if(n[i] >= original.len - 1){
                     d[i] = std.math.maxInt(u32);
-                    n[i] = @intCast(u32, original.len);
+                    n[i] = length;
                     next_i = i;
                 } else {
                     d[i] = original[n[i] + 1] - original[n[i]];
