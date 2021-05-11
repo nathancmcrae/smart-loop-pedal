@@ -107,8 +107,14 @@ pub fn glbi(list: []const u32, value: u32) ?u32 {
     return glbi_rec(list, value, ilow, ihigh);
 }
 
-pub fn window_function(v: u32, w: u32, WINDOW_LEN: u32) u64 {
-    return std.math.max(0, 1 - 2 * std.math.abs(value - 2) / WINDOW_LEN);
+pub fn windowFunction(v: u32, w: u32, WINDOW_LEN: u32) u64 {
+    var diff: u32 = 0;
+    if(v > w) {
+        diff = v - w;
+    } else {
+        diff = w - v;
+    }
+    return std.math.max(0, 1 - 2 * diff / WINDOW_LEN);
 }
 
 // TODO: Should be named labelledSeqProduct
@@ -132,17 +138,34 @@ pub fn labelled_seq_product(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64
     while(i < x.len) : ( i += 1 ) {
         const v = x[i] + shift;
 
-        var window_start = (glbi(x, v - WINDOW_LEN/2) orelse -1) + 1;
+        var window_start: usize = 0; 
+        if(glbi(x, v - WINDOW_LEN / 2)) |start| {
+            window_start = start + 1;
+        } 
         window_start = std.math.min(std.math.max(0, window_start), length - 1);
 
         std.debug.assert(window_start == length - 1 or x[window_start] >= v - WINDOW_LEN/2);
         std.debug.assert(window_start == 0 or x[window_start - 1] <= v - WINDOW_LEN/2);
 
-        var window_end = (glbi(x, v + WINDOW_LEN/2) orelse -1) + 1;
+        var window_end: usize = 0;
+        if(glbi(x, v + WINDOW_LEN/2)) |end| {
+            window_end = end + 1;
+        } 
         window_end = std.math.min(x.len - 1, window_end);
 
         std.debug.assert(window_end == 0 or x[window_end - 1] <= v + WINDOW_LEN/2);
         std.debug.assert(window_end == x.len - 1 or x[window_end] > v + WINDOW_LEN/2);
+
+        var point_product: u64 = 0;
+        var j: usize = window_start;
+        while(j < window_end) : (j += 1) {
+            if(j == i or l[j] != l[i]) continue;
+
+            std.debug.assert(windowFunction(v, x[j], WINDOW_LEN) >= 0);
+            point_product += windowFunction(v, x[j], WINDOW_LEN);
+        }
+
+        product += point_product;
     }
     return product;
 }
