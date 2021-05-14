@@ -53,7 +53,7 @@ const test_file = @embedFile("cycle-test_2020-04-15.mid.txt");
 pub fn main() !void {
     const notes = (try parseNoteFile(std.testing.allocator, test_file));
     defer std.testing.allocator.free(notes);
-    std.debug.warn("test", .{});
+    std.debug.warn("test\n", .{});
 
     var note_ons = std.ArrayList(u32).init(std.testing.allocator);
     defer note_ons.deinit();
@@ -63,6 +63,14 @@ pub fn main() !void {
     }
 
     var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
+    defer std.testing.allocator.free(overlaps.shifts);
+    defer std.testing.allocator.free(overlaps.next_is);
+
+    std.debug.print("shifts: {}\n", .{overlaps.shifts.len});
+
+    for(overlaps.shifts) |overlap, i| {
+        std.debug.print("{}: {}\n", .{i, overlap});
+    }
 }
 
 fn glbi_rec(list: []const u32, value: u32, ilow: u32, ihigh: u32) u32 {
@@ -205,8 +213,10 @@ fn min_index(list: []u32) !usize {
 } 
 
 pub const self_overlap_results = struct {
-    s: []u32,
-    i: []u32,
+    // Each shift of the input sequence which will overlap one or more impulses
+    shifts: []u32,
+    // next_is[i] is the index of the impulse which will overlap next, after shifts[i]
+    next_is: []u32,
 };
 
 /// Given an impulse sequence, return a list of all shifts that would cause a shifted version
@@ -227,13 +237,13 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     var d = try alloc.alloc(u32, original.len - 1);
     defer alloc.free(d);
 
-    // Initialize d
+    // Initialize d and n
     for (original) |value, i| {
+        n[i] = @truncate(u32, i) + 1;
         if(i < d.len) {
-            if(!(original[i+1] >= original[i])){
-                std.debug.warn("i: {}, i+1: {}", .{original[i], original[i+1]});
-            }
+            std.debug.assert(original[i+1] >= original[i]);
             d[i] = original[i + 1] - original[i];
+            std.debug.print("d[{}]: {}", .{i, d[i]});
         }
     }
 
@@ -260,6 +270,8 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     while(n[0] < original.len){
         const k = @intCast(u32, try min_index(d));
         const shift = d[k];
+
+        std.debug.print("n[0]: {}\nk: {}\n", .{n[0], k});
 
         std.debug.assert(shift >= 0);
         total_shift += shift;
@@ -303,9 +315,17 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         }
     }
 
+    std.debug.print("done overlapping; length: {}\n", .{shifts.items.len});
+    
+    var shifts_out = try alloc.alloc(u32, shifts.items.len);
+    std.mem.copy(u32, shifts_out, shifts.items);
+
+    var next_is_out = try alloc.alloc(u32, next_is.items.len);
+    std.mem.copy(u32, next_is_out, next_is.items);
+
     const result: self_overlap_results = . {
-        .s = shifts.items,
-        .i = next_is.items,
+        .shifts = shifts_out,
+        .next_is = next_is_out,
     };
 
     return result;
@@ -374,7 +394,7 @@ pub fn parseNoteLine(line_contents: []const u8) !NoteEvent {
         }
     }
 
-    std.debug.warn("({},{},{},{})", note);
+    std.debug.warn("({},{},{},{})\n", note);
 
     return note;
 }
@@ -399,31 +419,32 @@ pub fn parseNoteFile(alloc: *Allocator, contents: []const u8) ![]NoteEvent {
     return notes_list;
 }
 
-
-test "empty sequence means no shifts" {
-    // TODO: calculate note shifts from file
+test "get overlaps of test file" {
     const notes = (try parseNoteFile(std.testing.allocator, test_file));
+    defer std.testing.allocator.free(notes);
+    std.debug.warn("test\n", .{});
 
     var note_ons = std.ArrayList(u32).init(std.testing.allocator);
     defer note_ons.deinit();
 
     for(notes) |note| {
-        try note_ons.append(note.note);
+        if(note.note_type == NoteType.note_on) {
+            try note_ons.append(note.note_time);
+        }
     }
 
     var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
+    defer std.testing.allocator.free(overlaps.shifts);
+    defer std.testing.allocator.free(overlaps.next_is);
 
-    // std.debug.warn("parsed content: {}\n", .{a.value});
-    // std.debug.warn("unparsed content: {}\n", .{a.rest});
+    std.debug.print("shifts: {}\n", .{overlaps.shifts.len});
 
-    // var original: []u32;
-    // for(file.value) |line, i| {
-    //     // if(@TypeOf(line) == @TypeOf(noteOnLine)){
-    //         std.debug.warn("line {}: {}\n", .{i, line});
-    //     // }
-    // }
+    for(overlaps.shifts) |overlap, i| {
+        std.debug.print("{}: {}\n", .{i, overlap});
+    }
+}
 
-
+test "empty sequence means no shifts" {
     const seq1: []u32 = try std.testing.allocator.alloc(u32, 0);
     if(get_sequence_self_overlaps(std.testing.allocator, seq1)) |value| {
         std.testing.expect(false);
@@ -432,5 +453,7 @@ test "empty sequence means no shifts" {
     }
 
     const seq2: []const u32 = &[_]u32 {0, 1, 2, 3};
-    const result = get_sequence_self_overlaps(std.testing.allocator, seq2);
+    const result = try get_sequence_self_overlaps(std.testing.allocator, seq2);
+    defer std.testing.allocator.free(result.shifts);
+    defer std.testing.allocator.free(result.next_is);
 }
