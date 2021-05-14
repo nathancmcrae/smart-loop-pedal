@@ -5,55 +5,64 @@ const mecha = @import("mecha/mecha.zig");
 const os = std.os;
 const Allocator = std.mem.Allocator;
 
-const contents = @embedFile("cycle-test_2020-04-15.mid.txt");
+const test_file = @embedFile("cycle-test_2020-04-15.mid.txt");
 
-test "nothing to see here" {
-    try readNoteFile(std.testing.allocator, contents);
-}
+// test "nothing to see here" {
+//     try readNoteFile(std.testing.allocator, test_file);
+// }
 
 /// Each line is a note on/off midi event
 /// Line format: <note-type>\t<note>\t<note-time>\t<note-velocity>
 ///
 /// note-time: 
-const noteFileParser = mecha.many(noteLine, .{.collect = false, .separator = mecha.utf8.char('\n')});
-const noteLine = mecha.oneOf(.{noteOnLine, noteOffLine});
-const noteOnLine = mecha.combine( . {
-    mecha.string("note_on"),
-    tab,
-    mecha.int(u32, 10),
-    tab,
-    mecha.int(u32, 10),
-    tab,
-    mecha.int(u32, 10),
-});
-const noteOffLine = mecha.combine( . {
-    mecha.string("note_off"),
-    tab,
-    mecha.int(u32, 10),
-    tab,
-    mecha.int(u32, 10),
-    tab,
-    mecha.int(u32, 10),
+// const noteFileParser = mecha.many(noteLine, .{.collect = true, .separator = mecha.utf8.char('\n')});
+// const noteLine = mecha.oneOf(.{noteOnLine, noteOffLine});
+// const noteOnLine = mecha.combine( . {
+//     mecha.string("note_on"),
+//     tab,
+//     mecha.int(u32, 10),
+//     tab,
+//     mecha.int(u32, 10),
+//     tab,
+//     mecha.int(u32, 10),
+// });
+// const noteOffLine = mecha.combine( . {
+//     mecha.string("note_off"),
+//     tab,
+//     mecha.int(u32, 10),
+//     tab,
+//     mecha.int(u32, 10),
+//     tab,
+//     mecha.int(u32, 10),
 
-});
-const tab = mecha.utf8.char('\t');
+// });
+// const tab = mecha.utf8.char('\t');
 
-pub fn readNoteFile(alloc: *Allocator, content: []const u8) !void {
+// pub fn readNoteFile(alloc: *Allocator, content: []const u8) !void {
 
-    const a = (try noteFileParser(alloc, content));
+//     // const a = (try noteFileParser(alloc, content));
 
-    std.debug.warn("parsed content: {}\n", .{a.value});
-    std.debug.warn("unparsed content: {}\n", .{a.rest});
+//     // std.debug.warn("parsed content: {}\n", .{a.value});
+//     // std.debug.warn("unparsed content: {}\n", .{a.rest});
 
-    // for(a) |line, i| {
-    //     std.debug.warn("line {}: {}\n", .{i, line});
-    // }
-}
+//     // for(a.value) |line, i| {
+//     //     std.debug.warn("line {}: {}\n", .{i, line});
+//     // }
+// }
  
 pub fn main() !void {
-    try readNoteFile(std.testing.allocator, contents);
-    std.debug.warn("am run\n", .{});
+    const notes = (try parseNoteFile(std.testing.allocator, test_file));
+    defer std.testing.allocator.free(notes);
+    std.debug.warn("test", .{});
 
+    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
+    defer note_ons.deinit();
+
+    for(notes) |note| {
+        try note_ons.append(note.note_time);
+    }
+
+    var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
 }
 
 fn glbi_rec(list: []const u32, value: u32, ilow: u32, ihigh: u32) u32 {
@@ -117,7 +126,6 @@ pub fn windowFunction(v: u32, w: u32, WINDOW_LEN: u32) u64 {
     return std.math.max(0, 1 - 2 * diff / WINDOW_LEN);
 }
 
-// TODO: Should be named labelledSeqProduct
 // For each point in the shifted label sequence, get all points in the 
 // original sequence within the window. Then take the sum of the 
 // objective function between the shifted point and all the original 
@@ -127,7 +135,7 @@ pub fn windowFunction(v: u32, w: u32, WINDOW_LEN: u32) u64 {
 //      +     + +               Points in window
 //    |     V     |             Window for shifted point
 //       *  *     * *    * **   Shifted sequence
-pub fn labelled_seq_product(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
+pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
     std.debug.assert(x.len == l.len);
     std.debug.assert(x.len <= std.math.maxInt(u32));
 
@@ -172,7 +180,7 @@ pub fn labelled_seq_product(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64
 
 test "empty labelled sequence product" {
     const empty: []u32 = try std.testing.allocator.alloc(u32, 0);
-    const result = labelled_seq_product(empty, empty, 0, 0);
+    const result = labelledSeqProduct(empty, empty, 0, 0);
 }
 
 /// Return the index of the minimum element of the list.
@@ -222,6 +230,9 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     // Initialize d
     for (original) |value, i| {
         if(i < d.len) {
+            if(!(original[i+1] >= original[i])){
+                std.debug.warn("i: {}, i+1: {}", .{original[i], original[i+1]});
+            }
             d[i] = original[i + 1] - original[i];
         }
     }
@@ -300,7 +311,119 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     return result;
 }
 
+
+pub const NoteType = enum {
+    note_on,
+    note_off,
+};
+
+pub const NoteEvent = struct {
+    note_type: NoteType,
+    note: u32,
+    note_time: u32,
+    note_velocity: u32,
+};
+
+pub fn strCompare(a:[]const u8, b:[]const u8) bool {
+    if(a.len != b.len) return false;
+    for(a) |c, i| {
+        if(c != b[i]){
+            return false;
+        }
+    }
+    return true;
+}
+
+pub fn parseNoteLine(line_contents: []const u8) !NoteEvent {
+    var note: NoteEvent = NoteEvent{
+        .note_type = NoteType.note_on,
+        .note = 0,
+        .note_time = 0,
+        .note_velocity = 0,
+    };
+    var field: u8 = 0;
+    var field_start: usize = 0;
+
+    for(line_contents) |char, i| {
+        if(char == '\t'){
+            const field_value = line_contents[field_start..i];
+            if(field == 0){
+                if(strCompare(field_value, "note_on")){
+                    note.note_type = NoteType.note_on;
+                } else if(strCompare(field_value, "note_off")) {
+                    note.note_type = NoteType.note_off;
+                } else {
+                    std.debug.warn("{}, {}, {}\n", .{field_value, i, field_start});
+                    std.debug.warn("{}, {}\n", .{char, line_contents[i]});
+
+                    return error.ParseError;
+
+                }
+            } else if(field == 1) {
+                note.note = try std.fmt.parseUnsigned(u32, field_value, 10);
+            } else if(field == 2) {
+                note.note_time = try std.fmt.parseUnsigned(u32, field_value, 10);
+            } else if(field == 3) {
+                note.note_velocity = try std.fmt.parseUnsigned(u32, field_value, 10);
+            } else {
+                return error.ParseError;
+            }
+
+            field_start = i + 1;
+            field += 1;
+        }
+    }
+
+    std.debug.warn("({},{},{},{})", note);
+
+    return note;
+}
+
+pub fn parseNoteFile(alloc: *Allocator, contents: []const u8) ![]NoteEvent {
+    var notes: std.ArrayList(NoteEvent) = std.ArrayList(NoteEvent).init(alloc);
+    defer notes.deinit();
+    
+    var line_start: usize = 0;
+    for (contents) |char, i| {
+        if(char == '\n') {
+            // std.debug.print("{}", .{contents[line_start..i]});
+            var line = try parseNoteLine(contents[line_start..i]);
+            try notes.append(line);
+            line_start = i + 1;
+        }
+    }
+
+    var notes_list = try alloc.alloc(NoteEvent, notes.items.len);
+    std.mem.copy(NoteEvent, notes_list, notes.items);
+
+    return notes_list;
+}
+
+
 test "empty sequence means no shifts" {
+    // TODO: calculate note shifts from file
+    const notes = (try parseNoteFile(std.testing.allocator, test_file));
+
+    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
+    defer note_ons.deinit();
+
+    for(notes) |note| {
+        try note_ons.append(note.note);
+    }
+
+    var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
+
+    // std.debug.warn("parsed content: {}\n", .{a.value});
+    // std.debug.warn("unparsed content: {}\n", .{a.rest});
+
+    // var original: []u32;
+    // for(file.value) |line, i| {
+    //     // if(@TypeOf(line) == @TypeOf(noteOnLine)){
+    //         std.debug.warn("line {}: {}\n", .{i, line});
+    //     // }
+    // }
+
+
     const seq1: []u32 = try std.testing.allocator.alloc(u32, 0);
     if(get_sequence_self_overlaps(std.testing.allocator, seq1)) |value| {
         std.testing.expect(false);
