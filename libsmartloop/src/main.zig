@@ -420,28 +420,45 @@ pub fn parseNoteFile(alloc: *Allocator, contents: []const u8) ![]NoteEvent {
 }
 
 test "get overlaps of test file" {
-    const notes = (try parseNoteFile(std.testing.allocator, test_file));
-    defer std.testing.allocator.free(notes);
+    const noteEvents = (try parseNoteFile(std.testing.allocator, test_file));
+    defer std.testing.allocator.free(noteEvents);
     std.debug.warn("test\n", .{});
 
     var note_ons = std.ArrayList(u32).init(std.testing.allocator);
     defer note_ons.deinit();
 
-    for(notes) |note| {
-        if(note.note_type == NoteType.note_on) {
+    var notes = std.ArrayList(u32).init(std.testing.allocator);
+    defer notes.deinit();
+
+    for(noteEvents) |note| {
+        if(note.note_type == NoteType.note_on and note.note_time < 10000) {
             try note_ons.append(note.note_time);
+            try notes.append(note.note);
         }
     }
+
+    var time1 = std.time.nanoTimestamp();
 
     var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
     defer std.testing.allocator.free(overlaps.shifts);
     defer std.testing.allocator.free(overlaps.next_is);
 
+    var time2 = std.time.nanoTimestamp();
+
     std.debug.print("shifts: {}\n", .{overlaps.shifts.len});
 
+    var shift_scores = std.ArrayList(u64).init(std.testing.allocator);
+    defer shift_scores.deinit();
+    
     for(overlaps.shifts) |overlap, i| {
-        std.debug.print("{}: {}\n", .{i, overlap});
+        var score = labelledSeqProduct(note_ons.items, notes.items, overlap, 50);
+        // std.debug.print("shift {}: {}, score: {}\n", .{i, overlap, score});
     }
+
+    var time3 = std.time.nanoTimestamp();
+
+    std.debug.print("time2-time1: {}\n", .{time2 - time1});
+    std.debug.print("time3-time2: {}\n", .{time3 - time2});
 }
 
 test "empty sequence means no shifts" {
