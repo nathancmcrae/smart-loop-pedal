@@ -5,77 +5,11 @@ const mecha = @import("mecha/mecha.zig");
 const os = std.os;
 const Allocator = std.mem.Allocator;
 
-const test_file = @embedFile("cycle-test_2020-04-15.mid.txt");
-
-// test "nothing to see here" {
-//     try readNoteFile(std.testing.allocator, test_file);
-// }
-
-/// Each line is a note on/off midi event
-/// Line format: <note-type>\t<note>\t<note-time>\t<note-velocity>
-///
-/// note-time: 
-// const noteFileParser = mecha.many(noteLine, .{.collect = true, .separator = mecha.utf8.char('\n')});
-// const noteLine = mecha.oneOf(.{noteOnLine, noteOffLine});
-// const noteOnLine = mecha.combine( . {
-//     mecha.string("note_on"),
-//     tab,
-//     mecha.int(u32, 10),
-//     tab,
-//     mecha.int(u32, 10),
-//     tab,
-//     mecha.int(u32, 10),
-// });
-// const noteOffLine = mecha.combine( . {
-//     mecha.string("note_off"),
-//     tab,
-//     mecha.int(u32, 10),
-//     tab,
-//     mecha.int(u32, 10),
-//     tab,
-//     mecha.int(u32, 10),
-
-// });
-// const tab = mecha.utf8.char('\t');
-
-// pub fn readNoteFile(alloc: *Allocator, content: []const u8) !void {
-
-//     // const a = (try noteFileParser(alloc, content));
-
-//     // std.debug.warn("parsed content: {}\n", .{a.value});
-//     // std.debug.warn("unparsed content: {}\n", .{a.rest});
-
-//     // for(a.value) |line, i| {
-//     //     std.debug.warn("line {}: {}\n", .{i, line});
-//     // }
-// }
- 
-pub fn main() !void {
-    const notes = (try parseNoteFile(std.testing.allocator, test_file));
-    defer std.testing.allocator.free(notes);
-    std.debug.warn("test\n", .{});
-
-    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
-    defer note_ons.deinit();
-
-    for(notes) |note| {
-        try note_ons.append(note.note_time);
-    }
-
-    var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
-    defer std.testing.allocator.free(overlaps.shifts);
-    defer std.testing.allocator.free(overlaps.next_is);
-
-    std.debug.print("shifts: {}\n", .{overlaps.shifts.len});
-
-    for(overlaps.shifts) |overlap, i| {
-        std.debug.print("{}: {}\n", .{i, overlap});
-    }
-}
+pub const test_file = @embedFile("cycle-test_2020-04-15.mid.txt");
 
 fn glbi_rec(list: []const u32, value: u32, ilow: u32, ihigh: u32) u32 {
     const length: u32 = @intCast(u32, list.len);
-    
+
     std.debug.assert(0 <= ilow and ilow < length);
     std.debug.assert(0 < ihigh and ihigh <= length);
 
@@ -109,8 +43,8 @@ test "glbi empty" {
 /// of 'value' in 'list'.
 /// error if value is less than all elements of the list.
 pub fn glbi(list: []const u32, value: u32) ?u32 {
-    const length = @intCast(u32, list.len); 
-    
+    const length = @intCast(u32, list.len);
+
     const ilow = 0;
     const ihigh = length;
 
@@ -134,9 +68,9 @@ pub fn windowFunction(v: u32, w: u32, WINDOW_LEN: u32) u64 {
     return std.math.max(0, 1 - 2 * diff / WINDOW_LEN);
 }
 
-// For each point in the shifted label sequence, get all points in the 
-// original sequence within the window. Then take the sum of the 
-// objective function between the shifted point and all the original 
+// For each point in the shifted label sequence, get all points in the
+// original sequence within the window. Then take the sum of the
+// objective function between the shifted point and all the original
 // points in its window that have the same label
 //
 //   *  *     * *    * **       Original sequence
@@ -154,10 +88,10 @@ pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
     while(i < x.len) : ( i += 1 ) {
         const v = x[i] + shift;
 
-        var window_start: usize = 0; 
+        var window_start: usize = 0;
         if(glbi(x, v - WINDOW_LEN / 2)) |start| {
             window_start = start + 1;
-        } 
+        }
         window_start = std.math.min(std.math.max(0, window_start), length - 1);
 
         std.debug.assert(window_start == length - 1 or x[window_start] >= v - WINDOW_LEN/2);
@@ -166,7 +100,7 @@ pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
         var window_end: usize = 0;
         if(glbi(x, v + WINDOW_LEN/2)) |end| {
             window_end = end + 1;
-        } 
+        }
         window_end = std.math.min(x.len - 1, window_end);
 
         std.debug.assert(window_end == 0 or x[window_end - 1] <= v + WINDOW_LEN/2);
@@ -210,7 +144,28 @@ fn min_index(list: []u32) !usize {
 
     std.debug.assert(current_min < list.len);
     return current_min;
-} 
+}
+
+/// Return the index of the maxiumum element of the list.
+/// If multiple elements are maximum, the first one is returned.
+/// If the list is empty, an error.EmptySequence is returned.
+fn max_index(list: []u32) !usize {
+    if(list.len == 0){
+        return error.EmptySequence;
+    }
+
+    var current_max: usize = 0;
+    var max_value = list[current_max];
+    for(list) |value, i| {
+        if(value < max_value){
+            current_max = i;
+            max_value = value;
+        }
+    }
+
+    std.debug.assert(current_max < list.len);
+    return current_max;
+}
 
 pub const self_overlap_results = struct {
     // Each shift of the input sequence which will overlap one or more impulses
@@ -225,7 +180,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     if(original.len == 0){
         return error.EmptySequence;
     }
-    
+
     // n[i] is the index of the impulse in the original sequence nearest 'in front of' the ith
     // impulse of the shifted sequence. i.e. for the ith impulse of the shifted sequence, which
     // impulse of the original sequence it will encounter next as the shifted sequence is shifted
@@ -278,7 +233,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         try shifts.append(total_shift);
 
         // Now that we know what the shift is, update n and d to reflect the new shifted sequence.
-        
+
         if(n[k] >= original.len - 1){
             d[k] = std.math.maxInt(u32);
             n[k] = length;
@@ -315,8 +270,8 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         }
     }
 
-    std.debug.print("done overlapping; length: {}\n", .{shifts.items.len});
-    
+    // std.debug.print("done overlapping; length: {}\n", .{shifts.items.len});
+
     var shifts_out = try alloc.alloc(u32, shifts.items.len);
     std.mem.copy(u32, shifts_out, shifts.items);
 
@@ -330,7 +285,6 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
 
     return result;
 }
-
 
 pub const NoteType = enum {
     note_on,
@@ -402,7 +356,7 @@ pub fn parseNoteLine(line_contents: []const u8) !NoteEvent {
 pub fn parseNoteFile(alloc: *Allocator, contents: []const u8) ![]NoteEvent {
     var notes: std.ArrayList(NoteEvent) = std.ArrayList(NoteEvent).init(alloc);
     defer notes.deinit();
-    
+
     var line_start: usize = 0;
     for (contents) |char, i| {
         if(char == '\n') {
@@ -449,7 +403,7 @@ test "get overlaps of test file" {
 
     var shift_scores = std.ArrayList(u64).init(std.testing.allocator);
     defer shift_scores.deinit();
-    
+
     for(overlaps.shifts) |overlap, i| {
         var score = labelledSeqProduct(note_ons.items, notes.items, overlap, 50);
         // std.debug.print("shift {}: {}, score: {}\n", .{i, overlap, score});
@@ -457,8 +411,8 @@ test "get overlaps of test file" {
 
     var time3 = std.time.nanoTimestamp();
 
-    std.debug.print("time2-time1: {}\n", .{time2 - time1});
-    std.debug.print("time3-time2: {}\n", .{time3 - time2});
+    std.debug.print("time2-time1: {} ns\n", .{time2 - time1});
+    std.debug.print("time3-time2: {} ns\n", .{time3 - time2});
 }
 
 test "empty sequence means no shifts" {
@@ -473,4 +427,46 @@ test "empty sequence means no shifts" {
     const result = try get_sequence_self_overlaps(std.testing.allocator, seq2);
     defer std.testing.allocator.free(result.shifts);
     defer std.testing.allocator.free(result.next_is);
+}
+
+pub const GetPeriodicityResult = struct {
+    /// How periodic the input sequence is
+    /// 0 means unable to establish any periodicity (incl. errors)
+    periodicity_power: u64,
+    /// the loop length in ms
+    periodicity: u32,
+};
+
+/// Given a labelled impulse sequence, return its periodicity
+///
+/// x is the impulse sequence as a monotonic array of times in ms
+/// l is the array of labels for each impulse in x (labels are e.g. notes in a phrase of music)
+pub fn getPeriodicity(alloc: *std.Allocator, x: []u32, l: []u32) !GetPeriodicityResult {
+// pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
+// pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
+
+    var overlaps = try get_sequence_self_overlaps(alloc, x);
+    defer std.testing.allocator.free(overlaps.shifts);
+    defer std.testing.allocator.free(overlaps.next_is);
+
+    var shift_scores = std.ArrayList(u64).init(alloc);
+    defer shift_scores.deinit();
+
+    for(overlaps.shifts) |overlap, i| {
+        var score = labelledSeqProduct(note_ons.items, notes.items, overlap, 50);
+        shift_scores.append(score);
+    }
+
+    var max_i_err = max_index(score);
+    if(max_i_err) |max_i| {
+        return .{
+            .periodicity_power = shift_scores[max_i],
+            .periodicity = overlaps.shifts[max_i],
+        };
+    } else {
+        return .{
+            .periodicity_power = 0,
+            .periodicity = 0,
+        };
+    }
 }
