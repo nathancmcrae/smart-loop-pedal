@@ -143,3 +143,13 @@ Decision: I will track note_offs by necessity, but for periodicity calculations 
 
 [ ] Need to set up final project structure (particularly the build process)
     maybe src/main.zig
+
+# 2021-05-15
+
+Commands to compile and run zigimock all in one:
+
+``` bash
+zig build-lib --library c -I . -I "/usr/include/pd" -fno-stack-check -fcompiler-rt -DPD -DUNIX -fPIC -rpath "\$ORIGIN" --main-pkg-path .. zigimock.zig
+cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags -o midimock.pd_linux midimock.o libzigimock.a  -lc -lm                                                                             
+pd -alsamidi -midiindev 1 -midioutdev 1 -lib midimock.pd_linux mockingbird-test.pd
+```
