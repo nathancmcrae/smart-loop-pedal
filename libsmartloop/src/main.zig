@@ -16,8 +16,8 @@ fn glbi_rec(list: []const u32, value: u32, ilow: u32, ihigh: u32) u32 {
     std.debug.assert(value >= list[ilow]);
     std.debug.assert(value < list[ihigh - 1]);
 
-    if(ilow == ihigh - 2){
-        if(value == list[ilow + 1]){
+    if (ilow == ihigh - 2) {
+        if (value == list[ilow + 1]) {
             return ilow + 1;
         } else {
             return ilow;
@@ -28,7 +28,7 @@ fn glbi_rec(list: []const u32, value: u32, ilow: u32, ihigh: u32) u32 {
     std.debug.assert(i >= ilow);
     std.debug.assert(i < ihigh);
 
-    if(value >= list[i]){
+    if (value >= list[i]) {
         return glbi_rec(list, value, i, ihigh);
     } else {
         return glbi_rec(list, value, ilow, i + 1);
@@ -48,10 +48,10 @@ pub fn glbi(list: []const u32, value: u32) ?u32 {
     const ilow = 0;
     const ihigh = length;
 
-    if(value < list[ilow]) {
+    if (value < list[ilow]) {
         return null;
     }
-    if(value >= list[list.len - 1]){
+    if (value >= list[list.len - 1]) {
         return length - 1;
     }
 
@@ -60,7 +60,7 @@ pub fn glbi(list: []const u32, value: u32) ?u32 {
 
 pub fn windowFunction(v: u32, w: u32, WINDOW_LEN: u32) u64 {
     var diff: u32 = 0;
-    if(v > w) {
+    if (v > w) {
         diff = v - w;
     } else {
         diff = w - v;
@@ -85,31 +85,31 @@ pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
     var product: u64 = 0;
 
     var i: usize = 0;
-    while(i < x.len) : ( i += 1 ) {
+    while (i < x.len) : (i += 1) {
         const v = x[i] + shift;
 
         var window_start: usize = 0;
-        if(glbi(x, v - WINDOW_LEN / 2)) |start| {
+        if (glbi(x, v - WINDOW_LEN / 2)) |start| {
             window_start = start + 1;
         }
         window_start = std.math.min(std.math.max(0, window_start), length - 1);
 
-        std.debug.assert(window_start == length - 1 or x[window_start] >= v - WINDOW_LEN/2);
-        std.debug.assert(window_start == 0 or x[window_start - 1] <= v - WINDOW_LEN/2);
+        std.debug.assert(window_start == length - 1 or x[window_start] >= v - WINDOW_LEN / 2);
+        std.debug.assert(window_start == 0 or x[window_start - 1] <= v - WINDOW_LEN / 2);
 
         var window_end: usize = 0;
-        if(glbi(x, v + WINDOW_LEN/2)) |end| {
+        if (glbi(x, v + WINDOW_LEN / 2)) |end| {
             window_end = end + 1;
         }
         window_end = std.math.min(x.len - 1, window_end);
 
-        std.debug.assert(window_end == 0 or x[window_end - 1] <= v + WINDOW_LEN/2);
-        std.debug.assert(window_end == x.len - 1 or x[window_end] > v + WINDOW_LEN/2);
+        std.debug.assert(window_end == 0 or x[window_end - 1] <= v + WINDOW_LEN / 2);
+        std.debug.assert(window_end == x.len - 1 or x[window_end] > v + WINDOW_LEN / 2);
 
         var point_product: u64 = 0;
         var j: usize = window_start;
-        while(j < window_end) : (j += 1) {
-            if(j == i or l[j] != l[i]) continue;
+        while (j < window_end) : (j += 1) {
+            if (j == i or l[j] != l[i]) continue;
 
             std.debug.assert(windowFunction(v, x[j], WINDOW_LEN) >= 0);
             point_product += windowFunction(v, x[j], WINDOW_LEN);
@@ -129,14 +129,14 @@ test "empty labelled sequence product" {
 /// If multiple elements are minimum, the first one is returned.
 /// If the list is empty, an error.EmptySequence is returned.
 fn min_index(list: []u32) !usize {
-    if(list.len == 0){
+    if (list.len == 0) {
         return error.EmptySequence;
     }
 
     var current_min: usize = 0;
     var min_value = list[current_min];
-    for(list) |value, i| {
-        if(value < min_value){
+    for (list) |value, i| {
+        if (value < min_value) {
             current_min = i;
             min_value = value;
         }
@@ -149,15 +149,15 @@ fn min_index(list: []u32) !usize {
 /// Return the index of the maxiumum element of the list.
 /// If multiple elements are maximum, the first one is returned.
 /// If the list is empty, an error.EmptySequence is returned.
-fn max_index(list: []u32) !usize {
-    if(list.len == 0){
-        return error.EmptySequence;
+fn max_index(comptime t: type, list: []t) usize {
+    if (list.len == 0) {
+        return 0;
     }
 
     var current_max: usize = 0;
     var max_value = list[current_max];
-    for(list) |value, i| {
-        if(value < max_value){
+    for (list) |value, i| {
+        if (value < max_value) {
             current_max = i;
             max_value = value;
         }
@@ -177,7 +177,7 @@ pub const self_overlap_results = struct {
 /// Given an impulse sequence, return a list of all shifts that would cause a shifted version
 /// of the sequence to have at least one overlap with the original sequence.
 pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
-    if(original.len == 0){
+    if (original.len == 0) {
         return error.EmptySequence;
     }
 
@@ -195,10 +195,10 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     // Initialize d and n
     for (original) |value, i| {
         n[i] = @truncate(u32, i) + 1;
-        if(i < d.len) {
-            std.debug.assert(original[i+1] >= original[i]);
+        if (i < d.len) {
+            std.debug.assert(original[i + 1] >= original[i]);
             d[i] = original[i + 1] - original[i];
-            std.debug.print("d[{}]: {}", .{i, d[i]});
+            std.debug.print("d[{}]: {}", .{ i, d[i] });
         }
     }
 
@@ -216,17 +216,17 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     defer next_is.deinit();
 
     // If you use more than 32 bits for your impulse sequence you deserve what you get.
-    if(original.len > std.math.maxInt(u32)){
+    if (original.len > std.math.maxInt(u32)) {
         return error.SequenceTooLarge;
     }
     const length: u32 = @intCast(u32, original.len);
     var next_i: u32 = length;
 
-    while(n[0] < original.len){
+    while (n[0] < original.len) {
         const k = @intCast(u32, try min_index(d));
         const shift = d[k];
 
-        std.debug.print("n[0]: {}\nk: {}\n", .{n[0], k});
+        std.debug.print("n[0]: {}\nk: {}\n", .{ n[0], k });
 
         std.debug.assert(shift >= 0);
         total_shift += shift;
@@ -234,7 +234,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
 
         // Now that we know what the shift is, update n and d to reflect the new shifted sequence.
 
-        if(n[k] >= original.len - 1){
+        if (n[k] >= original.len - 1) {
             d[k] = std.math.maxInt(u32);
             n[k] = length;
             next_i = k;
@@ -244,8 +244,8 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         }
 
         var i: u32 = 0;
-        while(i < d.len) : (i += 1) {
-            if(i == k or n[i] > original.len - 1) {
+        while (i < d.len) : (i += 1) {
+            if (i == k or n[i] > original.len - 1) {
                 continue;
             }
 
@@ -255,8 +255,8 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
             // If impulse i has same distance to next impulse as impulse k does, then we don't want
             // to record a redundant shift value of the same amount. So increment the 'next' impulse
             // for impulse i
-            if(d[i] == 0) {
-                if(n[i] >= original.len - 1){
+            if (d[i] == 0) {
+                if (n[i] >= original.len - 1) {
                     d[i] = std.math.maxInt(u32);
                     n[i] = length;
                     next_i = i;
@@ -278,7 +278,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
     var next_is_out = try alloc.alloc(u32, next_is.items.len);
     std.mem.copy(u32, next_is_out, next_is.items);
 
-    const result: self_overlap_results = . {
+    const result: self_overlap_results = .{
         .shifts = shifts_out,
         .next_is = next_is_out,
     };
@@ -298,10 +298,10 @@ pub const NoteEvent = struct {
     note_velocity: u32,
 };
 
-pub fn strCompare(a:[]const u8, b:[]const u8) bool {
-    if(a.len != b.len) return false;
-    for(a) |c, i| {
-        if(c != b[i]){
+pub fn strCompare(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    for (a) |c, i| {
+        if (c != b[i]) {
             return false;
         }
     }
@@ -318,26 +318,25 @@ pub fn parseNoteLine(line_contents: []const u8) !NoteEvent {
     var field: u8 = 0;
     var field_start: usize = 0;
 
-    for(line_contents) |char, i| {
-        if(char == '\t'){
+    for (line_contents) |char, i| {
+        if (char == '\t') {
             const field_value = line_contents[field_start..i];
-            if(field == 0){
-                if(strCompare(field_value, "note_on")){
+            if (field == 0) {
+                if (strCompare(field_value, "note_on")) {
                     note.note_type = NoteType.note_on;
-                } else if(strCompare(field_value, "note_off")) {
+                } else if (strCompare(field_value, "note_off")) {
                     note.note_type = NoteType.note_off;
                 } else {
-                    std.debug.warn("{}, {}, {}\n", .{field_value, i, field_start});
-                    std.debug.warn("{}, {}\n", .{char, line_contents[i]});
+                    std.debug.warn("{}, {}, {}\n", .{ field_value, i, field_start });
+                    std.debug.warn("{}, {}\n", .{ char, line_contents[i] });
 
                     return error.ParseError;
-
                 }
-            } else if(field == 1) {
+            } else if (field == 1) {
                 note.note = try std.fmt.parseUnsigned(u32, field_value, 10);
-            } else if(field == 2) {
+            } else if (field == 2) {
                 note.note_time = try std.fmt.parseUnsigned(u32, field_value, 10);
-            } else if(field == 3) {
+            } else if (field == 3) {
                 note.note_velocity = try std.fmt.parseUnsigned(u32, field_value, 10);
             } else {
                 return error.ParseError;
@@ -359,7 +358,7 @@ pub fn parseNoteFile(alloc: *Allocator, contents: []const u8) ![]NoteEvent {
 
     var line_start: usize = 0;
     for (contents) |char, i| {
-        if(char == '\n') {
+        if (char == '\n') {
             // std.debug.print("{}", .{contents[line_start..i]});
             var line = try parseNoteLine(contents[line_start..i]);
             try notes.append(line);
@@ -384,8 +383,8 @@ test "get overlaps of test file" {
     var notes = std.ArrayList(u32).init(std.testing.allocator);
     defer notes.deinit();
 
-    for(noteEvents) |note| {
-        if(note.note_type == NoteType.note_on and note.note_time < 10000) {
+    for (noteEvents) |note| {
+        if (note.note_type == NoteType.note_on and note.note_time < 10000) {
             try note_ons.append(note.note_time);
             try notes.append(note.note);
         }
@@ -404,7 +403,7 @@ test "get overlaps of test file" {
     var shift_scores = std.ArrayList(u64).init(std.testing.allocator);
     defer shift_scores.deinit();
 
-    for(overlaps.shifts) |overlap, i| {
+    for (overlaps.shifts) |overlap, i| {
         var score = labelledSeqProduct(note_ons.items, notes.items, overlap, 50);
         // std.debug.print("shift {}: {}, score: {}\n", .{i, overlap, score});
     }
@@ -417,13 +416,13 @@ test "get overlaps of test file" {
 
 test "empty sequence means no shifts" {
     const seq1: []u32 = try std.testing.allocator.alloc(u32, 0);
-    if(get_sequence_self_overlaps(std.testing.allocator, seq1)) |value| {
+    if (get_sequence_self_overlaps(std.testing.allocator, seq1)) |value| {
         std.testing.expect(false);
     } else |err| {
         std.testing.expect(err == error.EmptySequence);
     }
 
-    const seq2: []const u32 = &[_]u32 {0, 1, 2, 3};
+    const seq2: []const u32 = &[_]u32{ 0, 1, 2, 3 };
     const result = try get_sequence_self_overlaps(std.testing.allocator, seq2);
     defer std.testing.allocator.free(result.shifts);
     defer std.testing.allocator.free(result.next_is);
@@ -441,10 +440,9 @@ pub const GetPeriodicityResult = struct {
 ///
 /// x is the impulse sequence as a monotonic array of times in ms
 /// l is the array of labels for each impulse in x (labels are e.g. notes in a phrase of music)
-pub fn getPeriodicity(alloc: *std.Allocator, x: []u32, l: []u32) !GetPeriodicityResult {
-// pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
-// pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
-
+pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResult {
+    // pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
+    // pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
     var overlaps = try get_sequence_self_overlaps(alloc, x);
     defer std.testing.allocator.free(overlaps.shifts);
     defer std.testing.allocator.free(overlaps.next_is);
@@ -452,21 +450,48 @@ pub fn getPeriodicity(alloc: *std.Allocator, x: []u32, l: []u32) !GetPeriodicity
     var shift_scores = std.ArrayList(u64).init(alloc);
     defer shift_scores.deinit();
 
-    for(overlaps.shifts) |overlap, i| {
-        var score = labelledSeqProduct(note_ons.items, notes.items, overlap, 50);
-        shift_scores.append(score);
+    var max_score: u64 = 0;
+    var max_score_i: usize = 0;
+    var max_score_shift: u32 = 0;
+    for (overlaps.shifts) |overlap, i| {
+        var score = labelledSeqProduct(x, l, overlap, 50);
+        if(score > max_score){
+            max_score = score;
+            max_score_i = i;
+            max_score_shift = overlap;
+        }
+        try shift_scores.append(score);
     }
 
-    var max_i_err = max_index(score);
-    if(max_i_err) |max_i| {
-        return .{
-            .periodicity_power = shift_scores[max_i],
-            .periodicity = overlaps.shifts[max_i],
-        };
-    } else {
-        return .{
-            .periodicity_power = 0,
-            .periodicity = 0,
-        };
+    std.debug.print("max score: {}, i: {}\n", .{max_score, max_score_i});
+
+    const result: GetPeriodicityResult = .{
+        .periodicity_power = max_score,
+        .periodicity = max_score_shift,
+    };
+    return result;
+}
+
+test "periodicity test" {
+    const noteEvents = (try parseNoteFile(std.testing.allocator, test_file));
+    defer std.testing.allocator.free(noteEvents);
+    std.debug.warn("test\n", .{});
+
+    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
+    defer note_ons.deinit();
+
+    var notes = std.ArrayList(u32).init(std.testing.allocator);
+    defer notes.deinit();
+
+    for (noteEvents) |note| {
+        if (note.note_type == NoteType.note_on and note.note_time < 10000) {
+            try note_ons.append(note.note_time);
+            try notes.append(note.note);
+        }
     }
+
+    var periodicity = try getPeriodicity(std.testing.allocator, note_ons.items, notes.items);
+
+    std.debug.print("power: {}, periodicity: {}\n", periodicity);
+    std.debug.print("log periodicity: {}\n", .{ @log10(@intToFloat(f64, periodicity.periodicity)) });
 }
