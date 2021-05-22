@@ -26,6 +26,8 @@ typedef struct _inputs {
     t_float loop;
     t_float note;
     t_float velocity;
+    // The tick period in ms
+    t_float tick_ms;
 } t_inputs;
 
 typedef struct _midimock {

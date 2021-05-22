@@ -23,6 +23,7 @@ midimock_new(){
     floatinlet_new(&x->obj, &x->in_current.loop);
     floatinlet_new(&x->obj, &x->in_current.note);
     floatinlet_new(&x->obj, &x->in_current.velocity);
+    floatinlet_new(&x->obj, &x->in_current.tick_ms);
 
     x->note_out = outlet_new(&x->obj, &s_float);
     x->velocity_out = outlet_new(&x->obj, &s_float);
