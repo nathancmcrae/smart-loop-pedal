@@ -89,13 +89,15 @@ pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
         const v = x[i] + shift;
 
         var window_start: usize = 0;
-        if (glbi(x, v - WINDOW_LEN / 2)) |start| {
-            window_start = start + 1;
+        if(WINDOW_LEN / 2 < v){
+            if (glbi(x, v - WINDOW_LEN / 2)) |start| {
+                window_start = start + 1;
+            }
         }
         window_start = std.math.min(std.math.max(0, window_start), length - 1);
 
-        std.debug.assert(window_start == length - 1 or x[window_start] >= v - WINDOW_LEN / 2);
-        std.debug.assert(window_start == 0 or x[window_start - 1] <= v - WINDOW_LEN / 2);
+        // std.debug.assert(window_start == length - 1 or x[window_start] >= v - WINDOW_LEN / 2);
+        // std.debug.assert(window_start == 0 or x[window_start - 1] <= v - WINDOW_LEN / 2);
 
         var window_end: usize = 0;
         if (glbi(x, v + WINDOW_LEN / 2)) |end| {
@@ -194,11 +196,11 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
 
     // Initialize d and n
     for (original) |value, i| {
+        std.debug.print("x[{}]: {}\n", .{ i, value });
         n[i] = @truncate(u32, i) + 1;
         if (i < d.len) {
             std.debug.assert(original[i + 1] >= original[i]);
             d[i] = original[i + 1] - original[i];
-            std.debug.print("d[{}]: {}", .{ i, d[i] });
         }
     }
 
@@ -226,11 +228,12 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         const k = @intCast(u32, try min_index(d));
         const shift = d[k];
 
-        std.debug.print("n[0]: {}\nk: {}\n", .{ n[0], k });
+        // std.debug.print("n[0]: {}\nk: {}\n", .{ n[0], k });
 
         std.debug.assert(shift >= 0);
         total_shift += shift;
         try shifts.append(total_shift);
+        std.debug.print("Shift: {}\n", .{total_shift});
 
         // Now that we know what the shift is, update n and d to reflect the new shifted sequence.
 
@@ -393,8 +396,8 @@ test "get overlaps of test file" {
     var time1 = std.time.nanoTimestamp();
 
     var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
-    defer std.testing.allocator.free(overlaps.shifts);
-    defer std.testing.allocator.free(overlaps.next_is);
+    // defer std.testing.allocator.free(overlaps.shifts);
+    // defer std.testing.allocator.free(overlaps.next_is);
 
     var time2 = std.time.nanoTimestamp();
 
@@ -444,8 +447,11 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
     // pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
     // pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
     var overlaps = try get_sequence_self_overlaps(alloc, x);
-    defer std.testing.allocator.free(overlaps.shifts);
-    defer std.testing.allocator.free(overlaps.next_is);
+    // TODO: Why are these double-frees? Where the hell else are the getting freed?
+    // defer std.testing.allocator.free(overlaps.shifts);
+    // defer std.testing.allocator.free(overlaps.next_is);
+
+    std.debug.print("overlaps: {}\n", .{overlaps.shifts.len});
 
     var shift_scores = std.ArrayList(u64).init(alloc);
     defer shift_scores.deinit();
@@ -454,6 +460,8 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
     var max_score_i: usize = 0;
     var max_score_shift: u32 = 0;
     for (overlaps.shifts) |overlap, i| {
+        if(overlap == 0) continue;
+        
         var score = labelledSeqProduct(x, l, overlap, 50);
         if(score > max_score){
             max_score = score;
@@ -463,6 +471,7 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
         try shift_scores.append(score);
     }
 
+    std.debug.print("sequence len: {}\n", .{x.len});
     std.debug.print("max score: {}, i: {}\n", .{max_score, max_score_i});
 
     const result: GetPeriodicityResult = .{
