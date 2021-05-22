@@ -14,9 +14,10 @@
 //
 // The first entry in the buffer records the tick at which listening began.
 typedef struct _midibuffer {
+    // TODO: Maybe store this as in integer and convert it when added
     t_float note[BUFFER_LEN];
     t_float velocity[BUFFER_LEN];
-    long tick[BUFFER_LEN];
+    ulong tick[BUFFER_LEN];
     // index of the first free slot
     uint index;
 } t_midibuffer;
@@ -41,8 +42,8 @@ typedef struct _midimock {
     t_outlet *loop_ok_out;
     bool busy;
     // do we need to initialize this?
-    long long tick;
-    long long playback_tick;
+    ulong tick;
+    ulong playback_tick;
     // the index in the buffer that we are next going to play from
     uint playback_index;
 } t_midimock;
