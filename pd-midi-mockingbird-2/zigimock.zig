@@ -117,3 +117,8 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
     obj.tick = obj.tick + 1;
     obj.busy = false;
 }
+
+export fn midimock_float(obj: *mock.t_midimock, value: f32) void {
+    obj.in_current.note = value;
+    midimock_bang(obj);
+}

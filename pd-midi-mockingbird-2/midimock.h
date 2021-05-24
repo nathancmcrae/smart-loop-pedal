@@ -53,5 +53,6 @@ typedef struct _midimock {
 bool bar(int);
 
 void midimock_bang(t_midimock* obj);
+void midimock_float(t_midimock* obj, t_floatarg f);
 
 #endif // __MIDIMOCK_H_

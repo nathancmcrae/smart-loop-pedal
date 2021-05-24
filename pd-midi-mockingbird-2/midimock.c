@@ -21,7 +21,8 @@ midimock_new(){
 
     floatinlet_new(&x->obj, &x->in_current.listen);
     floatinlet_new(&x->obj, &x->in_current.loop);
-    floatinlet_new(&x->obj, &x->in_current.note);
+    // active 'note' input
+    inlet_new(&x->obj, &x->obj, &s_float, &s_float);
     floatinlet_new(&x->obj, &x->in_current.velocity);
     floatinlet_new(&x->obj, &x->in_current.tick_ms);
 
@@ -43,4 +44,5 @@ midimock_setup(){
         0);
 
     class_addbang(midimock_class, midimock_bang);
+    class_addfloat(midimock_class, midimock_float);
 }
