@@ -154,3 +154,7 @@ zig build-lib --library c -I . -I "/usr/include/pd" -fno-stack-check -fcompiler-
 cc -rdynamic -shared -fPIC -Wl,-rpath,"\$ORIGIN",--enable-new-dtags -o midimock.pd_linux midimock.o libzigimock.a  -lc -lm                                                                             
 pd -alsamidi -midiindev 1 -midioutdev 1 -lib midimock.pd_linux mockingbird-test.pd
 ```
+
+# 2021-05-23
+
+The current pd object architecture (in midimock) won't work because it can fundamentally take only one note at a time, but we want to be note rate to be unlimited. So need to find another architecture. Maybe it could be as simple as adding one more 'active' inlet that it banged when a new note is sent. That way we don't have to wait for the tick to add a new note.
