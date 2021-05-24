@@ -34,6 +34,7 @@ typedef struct _inputs {
 typedef struct _midimock {
     char obj[48];
     t_midibuffer buffer;
+    t_midibuffer note_on_buffer;
     t_inputs in_current;
     t_inputs in_previous;
     t_outlet *note_out, *velocity_out;
@@ -46,6 +47,7 @@ typedef struct _midimock {
     ulong playback_tick;
     // the index in the buffer that we are next going to play from
     uint playback_index;
+    ulong playback_period_ms;
 } t_midimock;
 
 bool bar(int);
