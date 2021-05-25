@@ -46,7 +46,7 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
             // store only note-ons in a separate buffer so we can pass them to the periodicity
             // calculations
-            if(obj.in_current.velocity != 0){
+            if (obj.in_current.velocity != 0) {
                 const nindex = obj.note_on_buffer.index;
                 obj.note_on_buffer.note[nindex] = obj.in_current.note;
                 obj.note_on_buffer.velocity[nindex] = obj.in_current.velocity;
@@ -73,10 +73,10 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         var i: usize = 0;
         std.debug.print("obj.in_current.tick_ms: {}", .{obj.in_current.tick_ms});
         while (i < obj.note_on_buffer.index) : (i += 1) {
-            if(obj.note_on_buffer.velocity[i] == 0) continue;
+            if (obj.note_on_buffer.velocity[i] == 0) continue;
             notes[i] = @floatToInt(u32, obj.note_on_buffer.note[i]);
             note_ons[i] = @floatToInt(u32, obj.in_current.tick_ms) * @truncate(u32, obj.note_on_buffer.tick[i]);
-            std.debug.print("note: {}, note_on: {}, obj.buffer.tick: {}, velocity: {}\n", .{notes[i], note_ons[i], obj.note_on_buffer.tick[i], obj.note_on_buffer.velocity[i]});
+            std.debug.print("note: {}, note_on: {}, obj.buffer.tick: {}, velocity: {}\n", .{ notes[i], note_ons[i], obj.note_on_buffer.tick[i], obj.note_on_buffer.velocity[i] });
         }
         var periodicity_err = sloop.getPeriodicity(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index], notes[0..obj.note_on_buffer.index]);
         if (periodicity_err) |periodicity| {
@@ -93,32 +93,40 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         if (obj.in_previous.loop == 0) {
             obj.playback_tick = obj.buffer.tick[0] - 1;
             obj.playback_index = 0;
-        } else if (obj.playback_tick == obj.buffer.tick[obj.playback_index]) {
-            mock.outlet_float(obj.velocity_out, obj.buffer.velocity[obj.playback_index]);
-            mock.outlet_float(obj.note_out, obj.buffer.note[obj.playback_index]);
+        } else {
+            while (obj.playback_tick == obj.buffer.tick[obj.playback_index]) {
+                mock.outlet_float(obj.velocity_out, obj.buffer.velocity[obj.playback_index]);
+                mock.outlet_float(obj.note_out, obj.buffer.note[obj.playback_index]);
 
-            obj.playback_index = obj.playback_index + 1;
+                obj.playback_index = obj.playback_index + 1;
+                // std.debug.print("next tick: {}\n", .{obj.buffer.tick[obj.playback_index]});
+            }
+
+            obj.playback_tick = obj.playback_tick + 1;
+            // std.debug.print("playback_tick: {}\n", .{obj.playback_tick});
 
             // if (obj.playback_index >= obj.buffer.index) {
             if ((obj.playback_tick - obj.buffer.tick[0]) * @floatToInt(u32, obj.in_current.tick_ms) >= obj.playback_period_ms) {
-                std.debug.print("current time: {}\n", .{
-                    (obj.playback_tick - obj.buffer.tick[0]) * @floatToInt(u32, obj.in_current.tick_ms)
-                });
+                std.debug.print("current time: {}\n", .{(obj.playback_tick - obj.buffer.tick[0]) * @floatToInt(u32, obj.in_current.tick_ms)});
                 obj.playback_tick = obj.buffer.tick[0] - 1;
                 obj.playback_index = 0;
             }
         }
-
-        obj.playback_tick = obj.playback_tick + 1;
     }
 
     obj.in_previous = obj.in_current;
 
-    obj.tick = obj.tick + 1;
+    obj.tick += 1;
     obj.busy = false;
 }
 
 export fn midimock_float(obj: *mock.t_midimock, value: f32) void {
-    obj.in_current.note = value;
-    midimock_bang(obj);
+    if (obj.in_current.loop == 0) {
+        obj.in_current.note = value;
+        midimock_bang(obj);
+
+        // We only want the tick to increment when we get triggered from the metronome, not when we
+        // get triggered from note input. Otherwise it screws up playback
+        obj.tick -= 1;
+    }
 }

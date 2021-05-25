@@ -461,14 +461,15 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
     var max_score_shift: u32 = 0;
     for (overlaps.shifts) |overlap, i| {
         if(overlap == 0) continue;
-        
-        var score = labelledSeqProduct(x, l, overlap, 50);
+
+        var score = labelledSeqProduct(x, l, overlap, 100);
         if(score > max_score){
             max_score = score;
             max_score_i = i;
             max_score_shift = overlap;
         }
         try shift_scores.append(score);
+        // std.debug.print("Shift: {}, power: {}\n", .{overlap, score});
     }
 
     std.debug.print("sequence len: {}\n", .{x.len});
