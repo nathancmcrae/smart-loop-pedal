@@ -495,6 +495,33 @@ test "periodicity test" {
 
     for (noteEvents) |note| {
         if (note.note_type == NoteType.note_on and note.note_time < 10000) {
+pub fn main() !void {
+    var args = std.process.args();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const alloc = &gpa.allocator;
+    var i: u8 = 0;
+
+    alloc.free(try (args.next(alloc) orelse return));
+
+    const path: [:0]u8 = try (args.next(alloc) orelse return);
+    defer alloc.free(path);
+
+    const file = try std.fs.cwd().openFile(path, .{.read = true});
+    const buf = try file.readToEndAlloc(alloc, 1048576);
+    
+
+    const noteEvents = (try parseNoteFile(std.testing.allocator, buf));
+    defer std.testing.allocator.free(noteEvents);
+    std.debug.warn("noteEvents.len: {}\n", .{noteEvents.len});
+
+    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
+    defer note_ons.deinit();
+
+    var notes = std.ArrayList(u32).init(std.testing.allocator);
+    defer notes.deinit();
+
+    for (noteEvents) |note| {
+        if (note.note_type == NoteType.note_on) {
             try note_ons.append(note.note_time);
             try notes.append(note.note);
         }
