@@ -265,3 +265,32 @@ def copy_midi_plaintext(in_filename, out_filename):
                         track[i].note, 
                         int(current_time * seconds_per_tick * 1000), 
                         track[i].velocity))
+                
+def process_file(midi_file):
+    """
+    reads a midi file and returns the shifts that produce impulse overlaps
+    and the associated powers of the labelled sequence product (between the
+    input impulse sequence and the shifted version of it)
+    """
+    mf = mido.MidiFile(midi_file)
+    track = mf.tracks[0]
+    us_per_beat = 500000.0
+    seconds_per_tick = 1e-6 * us_per_beat / mf.ticks_per_beat
+    current_time = 0
+    note_ons = []
+    notes = []
+    # The index of each note_on message in track
+    note_is = []
+
+    for i in range(len(track)):
+        current_time = current_time + track[i].time
+        #print("{}, time: {}".format(track[i], current_time))
+        if(track[i].type == "note_on"):
+            note_ons.append(int(current_time * seconds_per_tick * 1000))
+            notes.append(track[i].note)
+            note_is.append(i)
+    
+    shifts, next_is = get_sequence_self_overlaps(np.array(note_ons, dtype=float))
+    p = [labelled_seq_product(note_ons, notes, s,  100) for s in shifts]
+    
+    return shifts,p
