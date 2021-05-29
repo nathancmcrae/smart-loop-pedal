@@ -32,6 +32,7 @@ typedef struct _inputs {
 } t_inputs;
 
 typedef struct _midimock {
+    // TODO: zig didn't like the type 'cause it's opaque
     char obj[48];
     t_midibuffer buffer;
     t_midibuffer note_on_buffer;
