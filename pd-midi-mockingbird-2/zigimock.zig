@@ -67,26 +67,56 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
             mock.post("Recorded some notes");
         }
 
+        var time1 = std.time.nanoTimestamp();
+
         // try to calculate loop periodicity
         var notes: [mock.BUFFER_LEN]u32 = undefined;
         var note_ons: [mock.BUFFER_LEN]u32 = undefined;
         var i: usize = 0;
-        std.debug.print("obj.in_current.tick_ms: {}", .{obj.in_current.tick_ms});
+        // std.debug.print("obj.in_current.tick_ms: {}", .{obj.in_current.tick_ms});
         while (i < obj.note_on_buffer.index) : (i += 1) {
             if (obj.note_on_buffer.velocity[i] == 0) continue;
             notes[i] = @floatToInt(u32, obj.note_on_buffer.note[i]);
             note_ons[i] = @floatToInt(u32, obj.in_current.tick_ms) * @truncate(u32, obj.note_on_buffer.tick[i]);
-            std.debug.print("note: {}, note_on: {}, obj.buffer.tick: {}, velocity: {}\n", .{ notes[i], note_ons[i], obj.note_on_buffer.tick[i], obj.note_on_buffer.velocity[i] });
+            // std.debug.print("note: {}, note_on: {}, obj.buffer.tick: {}, velocity: {}\n", .{ notes[i], note_ons[i], obj.note_on_buffer.tick[i], obj.note_on_buffer.velocity[i] });
         }
-        var periodicity_err = sloop.getPeriodicity(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index], notes[0..obj.note_on_buffer.index]);
-        if (periodicity_err) |periodicity| {
-            var message1 = std.fmt.bufPrint(message_slice, "periodicity power: {}, periodicity: {}", periodicity);
+
+        var periodicity_err1 = sloop.getPeriodicity(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index], notes[0..obj.note_on_buffer.index]);
+        if (periodicity_err1) |periodicity| {
+            var message1 = std.fmt.bufPrint(message_slice, "first iteration periodicity power: {}, periodicity: {}", periodicity);
             if (message1) |actual_message| {
                 mock.post(actual_message.ptr);
             } else |err| {}
 
             obj.playback_period_ms = periodicity.periodicity;
         } else |err| {}
+
+        var overlaps_err = sloop.get_sequence_self_overlaps(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index]);
+        if (overlaps_err) |overlaps| {
+            defer std.heap.c_allocator.free(overlaps.shifts);
+            defer std.heap.c_allocator.free(overlaps.next_is);
+
+            var periodicity_err = sloop.getFinePeriodicity(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index], notes[0..obj.note_on_buffer.index], overlaps, 50, 100);
+            // var periodicity_err = sloop.getPeriodicity(std.heap.c_allocator,
+            //                                            note_ons[0..obj.note_on_buffer.index],
+            //                                            notes[0..obj.note_on_buffer.index]);
+            if (periodicity_err) |periodicity| {
+                var message1 = std.fmt.bufPrint(message_slice, "periodicity power: {}, periodicity: {}", periodicity);
+                if (message1) |actual_message| {
+                    mock.post(actual_message.ptr);
+                } else |err| {}
+
+                obj.playback_period_ms = periodicity.periodicity;
+            } else |err| {
+                std.debug.print("error while getting periodicity: {}\n", .{err});
+            }
+        } else |err| {
+            std.debug.print("error while getting overlaps: {}\n", .{err});
+        }
+
+        var time2 = std.time.nanoTimestamp();
+
+        std.debug.print("time2-time1: {} ns\n", .{time2 - time1});
     }
 
     if (obj.in_current.loop != 0) {
