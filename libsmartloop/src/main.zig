@@ -447,22 +447,24 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
     // pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
     // pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
     var overlaps = try get_sequence_self_overlaps(alloc, x);
-    // TODO: Why are these double-frees? Where the hell else are the getting freed?
+    // TODO: Why are these double-frees? Where the hell else are they getting freed?
     // defer std.testing.allocator.free(overlaps.shifts);
     // defer std.testing.allocator.free(overlaps.next_is);
 
-    std.debug.print("overlaps: {}\n", .{overlaps.shifts.len});
+    // std.debug.print("overlaps: {}\n", .{overlaps.shifts.len});
 
     var shift_scores = std.ArrayList(u64).init(alloc);
     defer shift_scores.deinit();
+
+    const window_length = 100;
 
     var max_score: u64 = 0;
     var max_score_i: usize = 0;
     var max_score_shift: u32 = 0;
     for (overlaps.shifts) |overlap, i| {
-        if(overlap == 0) continue;
+        if(overlap <= window_length) continue;
 
-        var score = labelledSeqProduct(x, l, overlap, 100);
+        var score = labelledSeqProduct(x, l, overlap, window_length) * overlap;
         if(score > max_score){
             max_score = score;
             max_score_i = i;
@@ -494,7 +496,206 @@ test "periodicity test" {
     defer notes.deinit();
 
     for (noteEvents) |note| {
-        if (note.note_type == NoteType.note_on and note.note_time < 10000) {
+        if (note.note_type == NoteType.note_on) {
+            try note_ons.append(note.note_time);
+            try notes.append(note.note);
+        }
+    }
+
+    var periodicity = try getPeriodicity(std.testing.allocator, note_ons.items, notes.items);
+
+    std.debug.print("power: {}, periodicity: {}\n", periodicity);
+    std.debug.print("log periodicity: {}\n", .{ @log10(@intToFloat(f64, periodicity.periodicity)) });
+}
+
+const GetRoughPeriodicityResult = struct {
+    shifts: []u32,
+    /// Autocorrelation values for each shift
+    acorrs: []u64,
+};
+
+/// Get periodicity power for points in the shift sequence separated by delta
+/// (get's the nearest points that are in the shift sequence using greatest-lower-bound)
+/// This is an optimization so we don't have to calculate autocorrelation for every shift
+///
+/// Caller owns results
+pub fn getRoughPeriodicity(alloc: *Allocator,
+                           x: []u32,
+                           l: []u32,
+                           overlaps: self_overlap_results,
+                           delta: u32,
+                           window_length: u32) !GetRoughPeriodicityResult {
+    var shifts = std.ArrayList(u32).init(alloc);
+    defer shifts.deinit();
+    var acorrs = std.ArrayList(u64).init(alloc);
+    defer acorrs.deinit();
+    
+    var shift_i: u32 = 0;
+    while(shift_i < overlaps.shifts.len) {
+        const shift = overlaps.shifts[shift_i];
+        var acorr = labelledSeqProduct(x, l, shift, window_length) * shift;
+            
+        try acorrs.append(acorr);
+        try shifts.append(shift);
+
+        // increment to next shift we want to calculate
+        const new_shift_i = glbi(overlaps.shifts, overlaps.shifts[shift_i] + delta);
+        if(new_shift_i) |new| {
+            shift_i = if (new == shift_i) shift + 1 else new;
+        } else unreachable;
+    }
+
+    var shifts_out = try alloc.alloc(u32, shifts.items.len);
+    std.mem.copy(u32, shifts_out, shifts.items);
+
+    var acorrs_out = try alloc.alloc(u64, acorrs.items.len);
+    std.mem.copy(u64, acorrs_out, acorrs.items);
+
+    const result: GetRoughPeriodicityResult = .{
+        .shifts = shifts_out,
+        .acorrs = acorrs_out,
+    };
+    return result;
+}
+
+test "rough periodicity test" {
+    const noteEvents = (try parseNoteFile(std.testing.allocator, test_file));
+    defer std.testing.allocator.free(noteEvents);
+    std.debug.warn("noteEvents.len: {}\n", .{noteEvents.len});
+
+    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
+    defer note_ons.deinit();
+
+    var notes = std.ArrayList(u32).init(std.testing.allocator);
+    defer notes.deinit();
+
+    for (noteEvents) |note| {
+        if (note.note_type == NoteType.note_on) {
+            try note_ons.append(note.note_time);
+            try notes.append(note.note);
+        }
+    }
+
+    var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
+    defer std.testing.allocator.free(overlaps.shifts);
+    defer std.testing.allocator.free(overlaps.next_is);
+
+    var roughPeriodicity = try getRoughPeriodicity(std.testing.allocator,
+                                                   note_ons.items,
+                                                   notes.items,
+                                                   overlaps,
+                                                   50,
+                                                   100);
+    defer std.testing.allocator.free(roughPeriodicity.shifts);
+    defer std.testing.allocator.free(roughPeriodicity.acorrs);
+
+    for(roughPeriodicity.shifts) |shift, i| {
+        std.debug.print("{}: shift: {}, acorr: {}\n", .{i, shift, roughPeriodicity.acorrs[i]});
+    }
+}
+
+pub fn getFinePeriodicity(alloc: *Allocator,
+                           x: []u32,
+                           l: []u32,
+                           overlaps: self_overlap_results,
+                           delta: u32,
+                           window_length: u32) !GetPeriodicityResult {
+    const shifts = overlaps.shifts;
+    var rough_periodicity = try getRoughPeriodicity(alloc,
+                                                   x,
+                                                   l,
+                                                   overlaps,
+                                                   delta,
+                                                   window_length);
+    defer alloc.free(rough_periodicity.shifts);
+    defer alloc.free(rough_periodicity.acorrs);
+    const rough_shifts = rough_periodicity.shifts;
+
+    // Find max acorrelation on the rough pass to see where we need to search for the actual max
+    var max_acorr: u64 = 0;
+    var max_acorr_i: u32 = 0;
+    for(rough_shifts) |_, i| {
+        if(rough_periodicity.acorrs[i] > max_acorr){
+            max_acorr = rough_periodicity.acorrs[i];
+            max_acorr_i = @intCast(u32, i);
+        }
+    }
+    // std.debug.print("rough_max_acorr: {}\nrough_max_acorr_i: {}\n", .{max_acorr, max_acorr_i});
+
+    // Search the region surrounding the max from the rough periodicity check
+    var start_i = if (max_acorr_i > 0) max_acorr_i - 1 else 0;
+    if(glbi(shifts, rough_shifts[start_i])) |start_index| {
+        if(glbi(shifts, rough_shifts[std.math.min(rough_shifts.len - 1, max_acorr_i + 1)])) |end_index| {
+            // std.debug.print("rough_shifts[max_acorr_i]: {}\n", .{rough_shifts[max_acorr_i]});
+
+            // std.debug.print("start_index: {}\nend_index: {}\n", .{start_index, end_index});
+            // std.debug.print("shifts[start_index]: {}\nshifts[end_index]: {}\n", .{shifts[start_index], shifts[end_index]});
+
+            var fine_max_acorr: u64 = max_acorr;
+            var fine_max_acorr_i: u32 = max_acorr_i;
+            var i: u32 = start_index;
+            while(i <= end_index) : (i += 1) {
+                const overlap = overlaps.shifts[i];
+
+                var acorr = labelledSeqProduct(x, l, overlap, window_length) * overlap;
+                if(acorr > fine_max_acorr){
+                    fine_max_acorr = acorr;
+                    fine_max_acorr_i = i;
+                }
+            }
+            // std.debug.print("Shift: {}, power: {}\n", .{overlap, score});
+            const result: GetPeriodicityResult = .{
+                .periodicity_power = fine_max_acorr,
+                .periodicity = overlaps.shifts[fine_max_acorr_i],
+            };
+            return result;
+        } else unreachable;
+    } else unreachable;
+
+}
+
+test "fine periodicity test" {
+    const noteEvents = (try parseNoteFile(std.testing.allocator, test_file));
+    defer std.testing.allocator.free(noteEvents);
+    std.debug.warn("noteEvents.len: {}\n", .{noteEvents.len});
+
+    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
+    defer note_ons.deinit();
+
+    var notes = std.ArrayList(u32).init(std.testing.allocator);
+    defer notes.deinit();
+
+    for (noteEvents) |note| {
+        if (note.note_type == NoteType.note_on) {
+            try note_ons.append(note.note_time);
+            try notes.append(note.note);
+        }
+    }
+
+    var time1 = std.time.nanoTimestamp();
+
+    var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
+    defer std.testing.allocator.free(overlaps.shifts);
+    defer std.testing.allocator.free(overlaps.next_is);
+
+    var fine_periodicity = try getFinePeriodicity(std.testing.allocator,
+                                                   note_ons.items,
+                                                   notes.items,
+                                                   overlaps,
+                                                   50,
+                                                   100);
+
+    var time2 = std.time.nanoTimestamp();
+
+    var periodicity = try getPeriodicity(std.testing.allocator, note_ons.items, notes.items);
+
+    var time3 = std.time.nanoTimestamp();
+    std.debug.print("time2-time1: {} ns\n", .{time2 - time1});
+    std.debug.print("time3-time2: {} ns\n", .{time3 - time2});
+    std.debug.print("fine power: {}, periodicity: {}\n", fine_periodicity);
+    std.debug.print("power: {}, periodicity: {}\n", periodicity);
+}
+
 pub fn main() !void {
     var args = std.process.args();
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
