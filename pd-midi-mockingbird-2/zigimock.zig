@@ -11,6 +11,27 @@ export fn bar(b: c_int) bool {
     return b >= 5;
 }
 
+fn writeNoteSequence(alloc: *std.mem.Allocator, notes: []u32, note_times: []u32, note_velocities: []f32, file_path: []u8) !void {
+    const file = try std.fs.cwd().createFile(
+        file_path,
+        .{},
+    );
+    defer file.close();
+
+    const length = std.math.max(notes.len, std.math.max(note_times.len, note_velocities.len));
+    var i: usize = 0;
+    while (i < length) : (i += 1) {
+        const note_type = if (note_velocities[i] == 0) "note_off" else "note_on";
+        const line = try std.fmt.allocPrint(alloc, "{}\t{}\t{}\t{}\n", .{
+            note_type,
+            notes[i],
+            note_times[i],
+            @floatToInt(u32, note_velocities[i]),
+        });
+        try file.writeAll(line);
+    }
+}
+
 export fn midimock_bang(obj: *mock.t_midimock) void {
     if (obj.busy) return;
     obj.busy = true;
