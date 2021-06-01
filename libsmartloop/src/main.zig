@@ -522,29 +522,24 @@ const GetRoughPeriodicityResult = struct {
 /// This is an optimization so we don't have to calculate autocorrelation for every shift
 ///
 /// Caller owns results
-pub fn getRoughPeriodicity(alloc: *Allocator,
-                           x: []u32,
-                           l: []u32,
-                           overlaps: self_overlap_results,
-                           delta: u32,
-                           window_length: u32) !GetRoughPeriodicityResult {
+pub fn getRoughPeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_overlap_results, delta: u32, window_length: u32) !GetRoughPeriodicityResult {
     var shifts = std.ArrayList(u32).init(alloc);
     defer shifts.deinit();
     var acorrs = std.ArrayList(u64).init(alloc);
     defer acorrs.deinit();
-    
+
     var shift_i: u32 = 0;
-    while(shift_i < overlaps.shifts.len) {
+    while (shift_i < overlaps.shifts.len) {
         const shift = overlaps.shifts[shift_i];
-        var acorr = labelledSeqProduct(x, l, shift, window_length) * shift;
-            
+        const acorr = labelledSeqProduct(x, l, shift, window_length) * shift;
+
         try acorrs.append(acorr);
         try shifts.append(shift);
 
         // increment to next shift we want to calculate
         const new_shift_i = glbi(overlaps.shifts, overlaps.shifts[shift_i] + delta);
-        if(new_shift_i) |new| {
-            shift_i = if (new == shift_i) shift + 1 else new;
+        if (new_shift_i) |new| {
+            shift_i = if (new == shift_i) shift_i + 1 else new;
         } else unreachable;
     }
 
