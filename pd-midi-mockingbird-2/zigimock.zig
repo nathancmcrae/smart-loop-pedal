@@ -80,7 +80,7 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         var message_buf: [100]u8 = undefined;
         const message_slice = message_buf[0..];
 
-        var message = std.fmt.bufPrint(message_slice, "Recorded {} notes", .{obj.buffer.index});
+        var message = std.fmt.bufPrint(message_slice, "Recorded {} notes\x00", .{obj.buffer.index});
 
         if (message) |actual_message| {
             mock.post(actual_message.ptr);
@@ -118,11 +118,8 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
             defer std.heap.c_allocator.free(overlaps.next_is);
 
             var periodicity_err = sloop.getFinePeriodicity(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index], notes[0..obj.note_on_buffer.index], overlaps, 50, 100);
-            // var periodicity_err = sloop.getPeriodicity(std.heap.c_allocator,
-            //                                            note_ons[0..obj.note_on_buffer.index],
-            //                                            notes[0..obj.note_on_buffer.index]);
             if (periodicity_err) |periodicity| {
-                var message1 = std.fmt.bufPrint(message_slice, "periodicity power: {}, periodicity: {}", periodicity);
+                var message1 = std.fmt.bufPrint(message_slice, "periodicity power: {}, periodicity: {}\x00", periodicity);
                 if (message1) |actual_message| {
                     mock.post(actual_message.ptr);
                 } else |err| {}
