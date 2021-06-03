@@ -121,6 +121,7 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
             }
         } else |err| {
             std.debug.print("error while getting overlaps: {}\n", .{err});
+            return;
         }
 
         var time2 = std.time.nanoTimestamp();
@@ -139,33 +140,50 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         //     obj.playback_index = sloop.glbi(ticks, @intCast(u32, obj.playback_tick)) orelse 0;
         //     std.debug.print("playback_tick: {}\nplayback_index: {}\ntick[index]: {}\n", .{obj.playback_tick, obj.playback_index, obj.buffer.tick[obj.playback_index]});
         // } else |err| {}
+
+        
+        obj.playback_start_time_ms = obj.buffer.time[0];
+        const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
+        const times_err = std.heap.c_allocator.alloc(u32, obj.buffer.index);
+        if (times_err) |times| {
+            defer std.heap.c_allocator.free(times);
+
+            var j: usize = 0;
+            while (j < obj.buffer.index) : (j += 1) {
+                times[j] = @intCast(u32, obj.buffer.time[j]);
+            }
+            obj.playback_index = sloop.glbi(times, @intCast(u32, playback_time)) orelse 0;
+            if(obj.buffer.time[obj.playback_index] < playback_time) {
+                    obj.playback_index += 1;
+            }
+        } else |err| {}
+
     }
 
-    if (obj.in_current.loop != 0) {
-        if (obj.in_previous.loop == 0) {
+    // if (obj.in_current.loop != 0) {
+    //     if (obj.in_previous.loop == 0) {
+    //         obj.playback_index = 0;
+    //         obj.playback_start_time_ms = current_time;
+    //     } else {
+    if(obj.in_current.listen == 0 and obj.playback_period_ms != 0) {
+        // std.debug.print("playback time: {}, next note: {}\n", .{@mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0], obj.buffer.time[obj.playback_index]});
+        const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
+        const next_note_time = obj.buffer.time[obj.playback_index];
+
+        if(playback_time > next_note_time and playback_time - next_note_time > 100){
+            mock.post("Excessive delay during playback");
+        }
+
+        if (playback_time >= next_note_time) {
+            mock.outlet_float(obj.velocity_out, obj.buffer.velocity[obj.playback_index]);
+            mock.outlet_float(obj.note_out, obj.buffer.note[obj.playback_index]);
+
+            obj.playback_index = obj.playback_index + 1;
+
+            // std.debug.print("next tick: {}\n", .{obj.buffer.tick[obj.playback_index]});
+        }
+        if((current_time + 10 - obj.playback_start_time_ms) / obj.playback_period_ms > (obj.previous_bang_time - obj.playback_start_time_ms) / obj.playback_period_ms){
             obj.playback_index = 0;
-            obj.playback_start_time_ms = current_time;
-        } else {
-    // if(obj.in_current.listen == 0 and obj.playback_period_ms != 0) {
-            std.debug.print("playback time: {}, next note: {}\n", .{@mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0], obj.buffer.time[obj.playback_index]});
-            const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
-            const next_note_time = obj.buffer.time[obj.playback_index];
-            
-            if(playback_time > next_note_time and playback_time - next_note_time > 100){
-                mock.post("Excessive delay during playback");
-            }
-
-            if (playback_time >= next_note_time) {
-                mock.outlet_float(obj.velocity_out, obj.buffer.velocity[obj.playback_index]);
-                mock.outlet_float(obj.note_out, obj.buffer.note[obj.playback_index]);
-
-                obj.playback_index = obj.playback_index + 1;
-
-                // std.debug.print("next tick: {}\n", .{obj.buffer.tick[obj.playback_index]});
-            }
-            if((current_time - obj.playback_start_time_ms) / obj.playback_period_ms > (obj.previous_bang_time - obj.playback_start_time_ms) / obj.playback_period_ms){
-                obj.playback_index = 0;
-            }
         }
     }
 
