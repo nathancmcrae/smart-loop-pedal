@@ -11,13 +11,11 @@
 //  Note: the first note value will be invalid (-1) because this way the tick index
 // can be aligned with the note/velocity index corresponding to the tick at which
 // that note/velocity was recorded.
-//
-// The first entry in the buffer records the tick at which listening began.
 typedef struct _midibuffer {
     // TODO: Maybe store this as in integer and convert it when added
     t_float note[BUFFER_LEN];
     t_float velocity[BUFFER_LEN];
-    ulong tick[BUFFER_LEN];
+    ulong time[BUFFER_LEN];
     // index of the first free slot
     uint index;
 } t_midibuffer;
@@ -41,13 +39,14 @@ typedef struct _midimock {
     // 1 if loop is ready, 0 otherwise
     // not using this right now
     t_outlet *loop_ok_out;
-    bool busy;
-    // do we need to initialize this?
-    ulong tick;
-    ulong playback_tick;
     // the index in the buffer that we are next going to play from
     uint playback_index;
     ulong playback_period_ms;
+    // The time the object started (unix time in ms)
+    ulong start_time_ms;
+    ulong playback_start_time_ms;
+    // The last time the bang function was called relative to playback_start_time_ms
+    ulong previous_bang_time;
 } t_midimock;
 
 bool bar(int);

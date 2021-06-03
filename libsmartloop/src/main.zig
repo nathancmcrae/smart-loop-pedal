@@ -5,10 +5,11 @@ const mecha = @import("mecha/mecha.zig");
 const os = std.os;
 const Allocator = std.mem.Allocator;
 
-pub const test_file = @embedFile("cycle-test_2020-04-15.mid.txt");
+pub const test_file = @embedFile("1622492456.txt");
+
 const verbose: bool = false;
 
-fn glbi_rec(list: []const u32, value: u32, ilow: u32, ihigh: u32) u32 {
+fn glbi_rec(list: [] u32, value: u32, ilow: u32, ihigh: u32) u32 {
     const length: u32 = @intCast(u32, list.len);
 
     std.debug.assert(0 <= ilow and ilow < length);
@@ -43,7 +44,7 @@ test "glbi empty" {
 /// Given a list of values, and a target value, return the index of the greatest lower bound
 /// of 'value' in 'list'.
 /// error if value is less than all elements of the list.
-pub fn glbi(list: []const u32, value: u32) ?u32 {
+pub fn glbi(list: [] u32, value: u32) ?u32 {
     const length = @intCast(u32, list.len);
 
     const ilow = 0;

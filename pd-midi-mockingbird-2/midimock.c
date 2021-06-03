@@ -10,13 +10,10 @@ midimock_new(){
     for(int i = 0; i < BUFFER_LEN; i++){
         x->buffer.note[i] = 0;
         x->buffer.velocity[i] = 0;
-        x->buffer.tick[i] = 0;
+        x->buffer.time[i] = 0;
     }
     x->buffer.index = 0;
 
-    x->busy = false;
-    x->tick = 0;
-    x->playback_tick = 0;
     x->playback_index = 0;
 
     floatinlet_new(&x->obj, &x->in_current.listen);
@@ -24,7 +21,6 @@ midimock_new(){
     // active 'note' input
     inlet_new(&x->obj, &x->obj, &s_float, &s_float);
     floatinlet_new(&x->obj, &x->in_current.velocity);
-    floatinlet_new(&x->obj, &x->in_current.tick_ms);
 
     x->note_out = outlet_new(&x->obj, &s_float);
     x->velocity_out = outlet_new(&x->obj, &s_float);
