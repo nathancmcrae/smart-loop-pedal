@@ -47,6 +47,7 @@ typedef struct _midimock {
     ulong playback_start_time_ms;
     // The last time the bang function was called relative to playback_start_time_ms
     ulong previous_bang_time;
+    ulong playback_iteration;
 } t_midimock;
 
 bool bar(int);

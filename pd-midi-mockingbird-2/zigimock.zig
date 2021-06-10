@@ -143,6 +143,7 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
         
         obj.playback_start_time_ms = obj.buffer.time[0];
+        obj.playback_iteration = (current_time - obj.playback_start_time_ms) / obj.playback_period_ms;
         const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
         const times_err = std.heap.c_allocator.alloc(u32, obj.buffer.index);
         if (times_err) |times| {
@@ -171,6 +172,8 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         const next_note_time = obj.buffer.time[obj.playback_index];
 
         if(playback_time > next_note_time and playback_time - next_note_time > 100){
+            // TODO: if there is excessive delay, then reset the playback index?
+            // we just want to catch up and don't want to play a ton of notes
             mock.post("Excessive delay during playback");
         }
 
@@ -182,8 +185,11 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
             // std.debug.print("next tick: {}\n", .{obj.buffer.tick[obj.playback_index]});
         }
-        if((current_time + 10 - obj.playback_start_time_ms) / obj.playback_period_ms > (obj.previous_bang_time - obj.playback_start_time_ms) / obj.playback_period_ms){
+        const current_iteration = (current_time + 10 - obj.playback_start_time_ms) / obj.playback_period_ms;
+        if(current_iteration > obj.playback_iteration){
+            std.debug.print("resetting playback; time: {}\n", .{ current_time });
             obj.playback_index = 0;
+            obj.playback_iteration = current_iteration;
         }
     }
 
