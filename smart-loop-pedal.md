@@ -162,3 +162,21 @@ The current pd object architecture (in midimock) won't work because it can funda
 # 2021-05-30
 
 Developed using zig version 0.7.1+dfacac916
+
+# 2021-05-31
+
+- [ ] Some things that zig test complains about memory leaks for, running pd will error with a double-free. For now I'm defaulting to making pd happy, but something is screwy. Maybe run it under valgrind
+
+# 2021-06-05
+
+Next thing to do is to set up a usable looping/testing environment (like recording midi up front so I can replay issues).
+
+I might need to run it on ReleaseFast for it to be fast enough.
+
+Then I can start fine-tuning the loop detection.
+
+# 2021-06-10
+
+First, I realized that once I have a loop recorded, then I can record stuff on top of that without needing to recalculate periodicity for the new track (unless I still want to do phrase-level polyrythms)
+
+Also, I tried to translate the c shim to zig. The translate nominally worked, but a lot of the types are still opaque. I might still try to see if I can get it to compile
