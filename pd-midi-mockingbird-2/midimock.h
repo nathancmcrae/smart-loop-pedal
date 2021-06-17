@@ -1,7 +1,6 @@
 #ifndef __MIDIMOCK_H_
 #define __MIDIMOCK_H_
 
-#include <assert.h>
 #include <m_pd.h>
 #include <semaphore.h>
 #include <stdbool.h>
