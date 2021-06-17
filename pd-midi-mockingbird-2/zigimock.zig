@@ -97,10 +97,13 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         }
 
         // Write a file with this note sequence
-        if(std.fmt.allocPrint(std.heap.c_allocator, "{}.txt", .{ std.time.timestamp() })) |filename|{
+        if(std.fmt.allocPrint(std.heap.c_allocator, "recordings/{}.txt", .{ std.time.timestamp() })) |filename|{
             const write_err = writeNoteSequence(std.heap.c_allocator, notes[0..obj.note_on_buffer.index], note_ons[0..obj.note_on_buffer.index], obj.note_on_buffer.velocity[0..obj.note_on_buffer.index], filename);
+            if(write_err) |_| {} else |err| {
+                mock.post("error writing recording file");
+            }
         } else |err| {
-            mock.post("error writing to file");
+            mock.post("error generating filename");
         }
 
         var overlaps_err = sloop.get_sequence_self_overlaps(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index]);
