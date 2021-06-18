@@ -398,8 +398,8 @@ test "get overlaps of test file" {
     var time1 = std.time.nanoTimestamp();
 
     var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
-    // defer std.testing.allocator.free(overlaps.shifts);
-    // defer std.testing.allocator.free(overlaps.next_is);
+    defer alloc.free(overlaps.shifts);
+    defer alloc.free(overlaps.next_is);
 
     var time2 = std.time.nanoTimestamp();
 
@@ -450,8 +450,9 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
     // pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
     var overlaps = try get_sequence_self_overlaps(alloc, x);
     // TODO: Why are these double-frees? Where the hell else are they getting freed?
-    // defer std.testing.allocator.free(overlaps.shifts);
-    // defer std.testing.allocator.free(overlaps.next_is);
+    // 2021-06-17: I dunno, maybe because they're using the TESTING allocator!?
+    defer alloc.free(overlaps.shifts);
+    defer alloc.free(overlaps.next_is);
 
     // std.debug.print("overlaps: {}\n", .{overlaps.shifts.len});
 
