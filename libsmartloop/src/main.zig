@@ -201,6 +201,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         if (verbose) std.debug.print("x[{}]: {}\n", .{ i, value });
         n[i] = @truncate(u32, i) + 1;
         if (i < d.len) {
+            std.debug.print("original[{} + 1]: {}\n", .{i, original[i + 1]});
             std.debug.assert(original[i + 1] >= original[i]);
             d[i] = original[i + 1] - original[i];
         }
@@ -433,6 +434,16 @@ test "empty sequence means no shifts" {
     defer std.testing.allocator.free(result.next_is);
 }
 
+pub const GetPeriodicityResultFull = struct {
+    /// How periodic the input sequence is
+    /// 0 means unable to establish any periodicity (incl. errors)
+    periodicity_power: u64,
+    /// the loop length in ms
+    periodicity: u32,
+    shifts: []u32,
+    acorrs: []u64,
+};
+
 pub const GetPeriodicityResult = struct {
     /// How periodic the input sequence is
     /// 0 means unable to establish any periodicity (incl. errors)
@@ -441,13 +452,7 @@ pub const GetPeriodicityResult = struct {
     periodicity: u32,
 };
 
-/// Given a labelled impulse sequence, return its periodicity
-///
-/// x is the impulse sequence as a monotonic array of times in ms
-/// l is the array of labels for each impulse in x (labels are e.g. notes in a phrase of music)
-pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResult {
-    // pub fn labelledSeqProduct(x: []u32, l: []u32, shift: u32, WINDOW_LEN: u32) u64 {
-    // pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !self_overlap_results {
+pub fn getPeriodicityFull(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResultFull {
     var overlaps = try get_sequence_self_overlaps(alloc, x);
     // TODO: Why are these double-frees? Where the hell else are they getting freed?
     // 2021-06-17: I dunno, maybe because they're using the TESTING allocator!?
@@ -456,8 +461,11 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
 
     // std.debug.print("overlaps: {}\n", .{overlaps.shifts.len});
 
-    var shift_scores = std.ArrayList(u64).init(alloc);
-    defer shift_scores.deinit();
+    var shifts = std.ArrayList(u32).init(alloc);
+    defer shifts.deinit();
+
+    var acorrs = std.ArrayList(u64).init(alloc);
+    defer acorrs.deinit();
 
     const window_length = 100;
 
@@ -473,7 +481,7 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
             max_score_i = i;
             max_score_shift = overlap;
         }
-        try shift_scores.append(score);
+        try shifts.append(overlap);
         if (verbose) std.debug.print("Shift: {}, power: {}\n", .{ overlap, score });
     }
 
@@ -482,9 +490,33 @@ pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResu
         std.debug.print("max score: {}, i: {}\n", .{ max_score, max_score_i });
     }
 
-    const result: GetPeriodicityResult = .{
+    var shifts_out = try alloc.alloc(u32, shifts.items.len);
+    std.mem.copy(u32, shifts_out, shifts.items);
+
+    var acorrs_out = try alloc.alloc(u64, acorrs.items.len);
+    std.mem.copy(u64, acorrs_out, acorrs.items);
+
+    const result: GetPeriodicityResultFull = .{
         .periodicity_power = max_score,
         .periodicity = max_score_shift,
+        .shifts = shifts_out,
+        .acorrs = acorrs_out,
+    };
+    return result;
+}
+
+/// Given a labelled impulse sequence, return its periodicity
+///
+/// x is the impulse sequence as a monotonic array of times in ms
+/// l is the array of labels for each impulse in x (labels are e.g. notes in a phrase of music)
+pub fn getPeriodicity(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResult {
+    var periodicity_full = try getPeriodicityFull(alloc, x, l);
+    defer alloc.free(periodicity_full.shifts);
+    defer alloc.free(periodicity_full.acorrs);
+
+    const result: GetPeriodicityResult = .{
+        .periodicity_power = periodicity_full.periodicity_power,
+        .periodicity = periodicity_full.periodicity,
     };
     return result;
 }
