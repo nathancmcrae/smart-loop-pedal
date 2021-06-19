@@ -180,3 +180,9 @@ Then I can start fine-tuning the loop detection.
 First, I realized that once I have a loop recorded, then I can record stuff on top of that without needing to recalculate periodicity for the new track (unless I still want to do phrase-level polyrythms)
 
 Also, I tried to translate the c shim to zig. The translate nominally worked, but a lot of the types are still opaque. I might still try to see if I can get it to compile
+
+# 2021-06-19
+
+- [ ] Do more extensive testing of equivalence between getPeriodicity and getFinePeriodicity
+- [ ] Be able to easily plot spectra
+- [ ] Be able to easily plot notes in piano-roll style
