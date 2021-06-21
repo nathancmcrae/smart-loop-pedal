@@ -186,3 +186,9 @@ Also, I tried to translate the c shim to zig. The translate nominally worked, bu
 - [ ] Do more extensive testing of equivalence between getPeriodicity and getFinePeriodicity
 - [ ] Be able to easily plot spectra
 - [ ] Be able to easily plot notes in piano-roll style
+
+# 2021-06-20
+
+```powershell
+get-childitem -recurse ./pd-midi-mockingbird-2/recordings/ |?{$_ -match "\.txt$"} | %{python ./plot_spectra.py $_.FullName}
+```
