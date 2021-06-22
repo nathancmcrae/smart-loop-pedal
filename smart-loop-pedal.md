@@ -165,7 +165,9 @@ Developed using zig version 0.7.1+dfacac916
 
 # 2021-05-31
 
-- [ ] Some things that zig test complains about memory leaks for, running pd will error with a double-free. For now I'm defaulting to making pd happy, but something is screwy. Maybe run it under valgrind
+- [x] Some things that zig test complains about memory leaks for, running pd will error with a double-free. For now I'm defaulting to making pd happy, but something is screwy. Maybe run it under valgrind
+
+2021-06-21: pretty sure this was because I was explicitly using the std.testing.allocator in some places instead of the passed-in allocator.
 
 # 2021-06-05
 
