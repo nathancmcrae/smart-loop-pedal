@@ -201,7 +201,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         if (verbose) std.debug.print("x[{}]: {}\n", .{ i, value });
         n[i] = @truncate(u32, i) + 1;
         if (i < d.len) {
-            std.debug.print("original[{} + 1]: {}\n", .{i, original[i + 1]});
+            if(verbose) std.debug.print("original[{} + 1]: {}\n", .{ i, original[i + 1] });
             std.debug.assert(original[i + 1] >= original[i]);
             d[i] = original[i + 1] - original[i];
         }
@@ -482,6 +482,7 @@ pub fn getPeriodicityFull(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicity
             max_score_shift = overlap;
         }
         try shifts.append(overlap);
+        try acorrs.append(score);
         if (verbose) std.debug.print("Shift: {}, power: {}\n", .{ overlap, score });
     }
 
@@ -621,18 +622,16 @@ test "rough periodicity test" {
     }
 }
 
-pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_overlap_results, delta: u32, window_length: u32) !GetPeriodicityResult {
+pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_overlap_results, delta: u32, window_length: u32) !GetPeriodicityResultFull {
     const shifts = overlaps.shifts;
     var rough_periodicity = try getRoughPeriodicity(alloc, x, l, overlaps, delta, window_length);
-    defer alloc.free(rough_periodicity.shifts);
-    defer alloc.free(rough_periodicity.acorrs);
     const rough_shifts = rough_periodicity.shifts;
 
     // Find max acorrelation on the rough pass to see where we need to search for the actual max
     var max_acorr: u64 = 0;
     var max_acorr_i: u32 = 0;
     for (rough_shifts) |shift, i| {
-        if(verbose) std.debug.print("rough periodicity shift[{}]: {}, acorr: {}\n", .{i, shift, rough_periodicity.acorrs[i]});
+        if (verbose) std.debug.print("rough periodicity shift[{}]: {}, acorr: {}\n", .{ i, shift, rough_periodicity.acorrs[i] });
         if (rough_periodicity.acorrs[i] > max_acorr) {
             max_acorr = rough_periodicity.acorrs[i];
             max_acorr_i = @intCast(u32, i);
@@ -725,14 +724,13 @@ pub fn main() !void {
     const file = try std.fs.cwd().openFile(path, .{ .read = true });
     const buf = try file.readToEndAlloc(alloc, 1048576);
 
-    const noteEvents = (try parseNoteFile(std.testing.allocator, buf));
-    defer std.testing.allocator.free(noteEvents);
-    std.debug.warn("noteEvents.len: {}\n", .{noteEvents.len});
+    const noteEvents = (try parseNoteFile(alloc, buf));
+    defer alloc.free(noteEvents);
 
-    var note_ons = std.ArrayList(u32).init(std.testing.allocator);
+    var note_ons = std.ArrayList(u32).init(alloc);
     defer note_ons.deinit();
 
-    var notes = std.ArrayList(u32).init(std.testing.allocator);
+    var notes = std.ArrayList(u32).init(alloc);
     defer notes.deinit();
 
     for (noteEvents) |note| {
@@ -742,8 +740,19 @@ pub fn main() !void {
         }
     }
 
-    var periodicity = try getPeriodicity(std.testing.allocator, note_ons.items, notes.items);
+    var periodicity = try getPeriodicityFull(alloc, note_ons.items, notes.items);
+    defer alloc.free(periodicity.shifts);
+    defer alloc.free(periodicity.acorrs);
 
-    std.debug.print("power: {}, periodicity: {}\n", periodicity);
-    std.debug.print("log periodicity: {}\n", .{@log10(@intToFloat(f64, periodicity.periodicity))});
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("shift\tacorr\n", .{});
+    for (periodicity.shifts) |shift, j| {
+        try stdout.print("{}\t{}\n", .{ shift, periodicity.acorrs[j] });
+    }
+
+    // std.debug.print("power: {}, periodicity: {}\n", .{
+    //     periodicity.periodicity_power,
+    //     periodicity.periodicity,
+    // });
+    // std.debug.print("log periodicity: {}\n", .{@log10(@intToFloat(f64, periodicity.periodicity))});
 }
