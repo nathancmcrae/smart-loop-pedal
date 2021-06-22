@@ -9,7 +9,7 @@ pub const test_file = @embedFile("1622492456.txt");
 
 const verbose: bool = false;
 
-fn glbi_rec(list: [] u32, value: u32, ilow: u32, ihigh: u32) u32 {
+fn glbi_rec(list: []u32, value: u32, ilow: u32, ihigh: u32) u32 {
     const length: u32 = @intCast(u32, list.len);
 
     std.debug.assert(0 <= ilow and ilow < length);
@@ -44,7 +44,7 @@ test "glbi empty" {
 /// Given a list of values, and a target value, return the index of the greatest lower bound
 /// of 'value' in 'list'.
 /// error if value is less than all elements of the list.
-pub fn glbi(list: [] u32, value: u32) ?u32 {
+pub fn glbi(list: []u32, value: u32) ?u32 {
     const length = @intCast(u32, list.len);
 
     const ilow = 0;
@@ -458,8 +458,6 @@ pub const GetPeriodicityResult = struct {
 
 pub fn getPeriodicityFull(alloc: *Allocator, x: []u32, l: []u32) !GetPeriodicityResultFull {
     var overlaps = try get_sequence_self_overlaps(alloc, x);
-    // TODO: Why are these double-frees? Where the hell else are they getting freed?
-    // 2021-06-17: I dunno, maybe because they're using the TESTING allocator!?
     defer alloc.free(overlaps.shifts);
     defer alloc.free(overlaps.next_is);
 
@@ -648,10 +646,10 @@ pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_
     var start_i = if (max_acorr_i > 0) max_acorr_i - 1 else 0;
     if (glbi(shifts, rough_shifts[start_i])) |start_index| {
         if (glbi(shifts, rough_shifts[std.math.min(rough_shifts.len - 1, max_acorr_i + 1)])) |end_index| {
-            if(verbose) {
+            if (verbose) {
                 std.debug.print("rough_shifts[max_acorr_i]: {}\n", .{rough_shifts[max_acorr_i]});
-                std.debug.print("start_index: {}\nend_index: {}\n", .{start_index, end_index});
-                std.debug.print("shifts[start_index]: {}\nshifts[end_index]: {}\n", .{shifts[start_index], shifts[end_index]});
+                std.debug.print("start_index: {}\nend_index: {}\n", .{ start_index, end_index });
+                std.debug.print("shifts[start_index]: {}\nshifts[end_index]: {}\n", .{ shifts[start_index], shifts[end_index] });
             }
 
             var fine_max_acorr: u64 = max_acorr;
@@ -666,7 +664,7 @@ pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_
                     fine_max_acorr_i = i;
                 }
             }
-            if(verbose) std.debug.print("Shift: {}, power: {}\n", .{ overlaps.shifts[fine_max_acorr_i], fine_max_acorr });
+            if (verbose) std.debug.print("Shift: {}, power: {}\n", .{ overlaps.shifts[fine_max_acorr_i], fine_max_acorr });
 
             const result: GetPeriodicityResult = .{
                 .periodicity_power = fine_max_acorr,
