@@ -98,8 +98,22 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
         if(obj.note_on_buffer.index > 0) {
             // Write a file with this note sequence
+
+            var all_notes: [mock.BUFFER_LEN]u32 = undefined;
+            var all_note_ons: [mock.BUFFER_LEN]u32 = undefined;
+
+            var j: usize = 0;
+            while(j < obj.buffer.index) : (j += 1) {
+                all_notes[j] = @floatToInt(u32, obj.buffer.note[j]);
+                all_note_ons[j] =  @truncate(u32, obj.buffer.time[j]);
+            }
+            
             if(std.fmt.allocPrint(std.heap.c_allocator, "recordings/{}.txt", .{ std.time.timestamp() }) ) |filename|{
-                const write_err = writeNoteSequence(std.heap.c_allocator, notes[0..obj.note_on_buffer.index], note_ons[0..obj.note_on_buffer.index], obj.note_on_buffer.velocity[0..obj.note_on_buffer.index], filename);
+                const write_err = writeNoteSequence(std.heap.c_allocator,
+                                                    all_notes[0..obj.buffer.index],
+                                                    all_note_ons[0..obj.buffer.index],
+                                                    obj.buffer.velocity[0..obj.buffer.index],
+                                                    filename);
                 if(write_err) |_| {} else |err| {
                     mock.post("error writing recording file");
                 }
