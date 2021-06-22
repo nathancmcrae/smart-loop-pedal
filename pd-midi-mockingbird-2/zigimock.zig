@@ -20,6 +20,7 @@ fn writeNoteSequence(alloc: *std.mem.Allocator, notes: []u32, note_times: []u32,
 
     const length = std.math.max(notes.len, std.math.max(note_times.len, note_velocities.len));
     var i: usize = 0;
+    try file.writeAll("note-type\tnote\tnote-time\tnote-velocity\n");
     while (i < length) : (i += 1) {
         const note_type = if (note_velocities[i] == 0) "note_off" else "note_on";
         const line = try std.fmt.allocPrint(alloc, "{}\t{}\t{}\t{}\n", .{
