@@ -366,8 +366,12 @@ pub fn parseNoteFile(alloc: *Allocator, contents: []const u8) ![]NoteEvent {
     for (contents) |char, i| {
         if (char == '\n') {
             // std.debug.print("{}\n", .{contents[line_start..i]});
-            var line = try parseNoteLine(contents[line_start..i]);
-            try notes.append(line);
+            var line_try = parseNoteLine(contents[line_start..i]);
+            if(line_try) |line| {
+                try notes.append(line);
+            } else |err| {
+                // oh well
+            }
             line_start = i + 1;
         }
     }
