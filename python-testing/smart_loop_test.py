@@ -1,6 +1,8 @@
+import pandas as pd
 import scipy as sp
 import numpy as np
 import mido
+import matplotlib as plt
 
 """
 This module contains utility functions for use with an automated midi loop 
@@ -254,7 +256,7 @@ def copy_midi_plaintext(in_filename, out_filename):
         us_per_beat = 500000.0
         seconds_per_tick = 1e-6 * us_per_beat / mf.ticks_per_beat
  
-        
+        out_file.write("note-type\tnote\tnote-time\tnote-velocity\n")
         for i in range(len(track)):
             current_time = current_time + track[i].time
 
@@ -265,6 +267,39 @@ def copy_midi_plaintext(in_filename, out_filename):
                         track[i].note, 
                         int(current_time * seconds_per_tick * 1000), 
                         track[i].velocity))
+
+def plot_note_file(filepath):
+    notes = pd.read_csv(filepath, delimiter='\t')
+    note_ons = notes[notes['note-type'] == 'note_on']
+    for i in range(len(note_ons)):
+        note = note_ons.iloc[i]
+        plt.plot([note['note-time']-50, note['note-time']+50],[note['note'], note['note']], color='b')
+
+def write_midi_file(in_filename, out_filename):
+    """
+    converts the given note file to a midi file for easier playback
+    """
+    notes = pd.read_csv(in_filename, delimiter='\t')
+
+    mid = mido.MidiFile()
+    track = mido.MidiTrack()
+    mid.tracks.append(track)
+
+    # mido says this is the default value
+    us_per_beat = 500000.0
+    # seconds_per_tick = 1e-6 * us_per_beat / mf.ticks_per_beat
+
+    track.append(mido.MetaMessage('set_tempo', tempo=2500))
+
+    previous_time_ms = 0
+    for i in range(len(notes)):
+        note = notes.iloc[i]
+        delta_ms = note['note-time'] - previous_time_ms
+        delta_ticks = int(mido.second2tick(delta_ms / 1E3, mid.ticks_per_beat, 500000))
+        track.append(mido.Message(note['note-type'], note=note['note'], time=delta_ticks, velocity=note['note-velocity']))
+        previous_time = note['note-time']
+
+    mid.save(out_filename)
                 
 def process_file(midi_file):
     """
