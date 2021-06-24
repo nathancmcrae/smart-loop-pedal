@@ -403,8 +403,8 @@ test "get overlaps of test file" {
     var time1 = std.time.nanoTimestamp();
 
     var overlaps = try get_sequence_self_overlaps(std.testing.allocator, note_ons.items);
-    defer alloc.free(overlaps.shifts);
-    defer alloc.free(overlaps.next_is);
+    defer std.testing.allocator.free(overlaps.shifts);
+    defer std.testing.allocator.free(overlaps.next_is);
 
     var time2 = std.time.nanoTimestamp();
 
