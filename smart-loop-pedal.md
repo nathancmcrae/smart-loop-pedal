@@ -194,3 +194,13 @@ Also, I tried to translate the c shim to zig. The translate nominally worked, bu
 ```powershell
 get-childitem -recurse ./pd-midi-mockingbird-2/recordings/ |?{$_ -match "\.txt$"} | %{python ./plot_spectra.py $_.FullName}
 ```
+
+# 2021-06-23
+
+1624505205.txt
+periodicity power: 29824, periodicity: 456
+
+looks like this is a difference between getPeriodicity and getFinePeriodicity
+
+- [ ] How to handle when recording buffer is full? Ideally the buffer should be sized such that it never practically happens, but what about when it does?
+  Maybe the pd object should have an 'error' output that triggers whenever something like this happens. This could toggle a light to indicate something happened.
