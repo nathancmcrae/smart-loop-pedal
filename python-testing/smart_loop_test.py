@@ -289,7 +289,7 @@ def write_midi_file(in_filename, out_filename):
     us_per_beat = 500000.0
     # seconds_per_tick = 1e-6 * us_per_beat / mf.ticks_per_beat
 
-    track.append(mido.MetaMessage('set_tempo', tempo=2500))
+    track.append(mido.MetaMessage('set_tempo', tempo=200))
 
     previous_time_ms = 0
     for i in range(len(notes)):
