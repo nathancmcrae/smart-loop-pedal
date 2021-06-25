@@ -204,3 +204,9 @@ looks like this is a difference between getPeriodicity and getFinePeriodicity
 
 - [ ] How to handle when recording buffer is full? Ideally the buffer should be sized such that it never practically happens, but what about when it does?
   Maybe the pd object should have an 'error' output that triggers whenever something like this happens. This could toggle a light to indicate something happened.
+
+# 2021-06-24
+
+Fixed a bug in getFinePeriodicity and loop detection seems better now. Still need more extensive testing, but for the sake of a setup that is more encouraging I think I should focus on syncing multiple loops. Maybe try to implement simpleloop?
+
+Then I need to do some cleanup.
