@@ -653,7 +653,7 @@ pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_
             }
 
             var fine_max_acorr: u64 = max_acorr;
-            var fine_max_acorr_i: u32 = max_acorr_i;
+            var fine_max_acorr_i: ?u32 = null;
             var i: u32 = start_index;
             while (i <= end_index) : (i += 1) {
                 const overlap = overlaps.shifts[i];
@@ -664,11 +664,19 @@ pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_
                     fine_max_acorr_i = i;
                 }
             }
-            if (verbose) std.debug.print("Shift: {}, power: {}\n", .{ overlaps.shifts[fine_max_acorr_i], fine_max_acorr });
+
+            // If we didn't find anything better with the fine search, just use the best from the
+            // rough. We take care that this is an index into overlaps.shifts (not rough_shifts).
+            var actual_max_acorr_i: u32 = fine_max_acorr_i orelse glbi(shifts, rough_shifts[max_acorr_i]).?;
+
+            if (verbose) std.debug.print("Shift[{}]: {}, power: {}\n", .{
+                actual_max_acorr_i,
+                overlaps.shifts[actual_max_acorr_i],
+                fine_max_acorr });
 
             const result: GetPeriodicityResult = .{
                 .periodicity_power = fine_max_acorr,
-                .periodicity = overlaps.shifts[fine_max_acorr_i],
+                .periodicity = overlaps.shifts[actual_max_acorr_i],
             };
             return result;
         } else unreachable;
