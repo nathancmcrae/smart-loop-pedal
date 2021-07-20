@@ -210,3 +210,7 @@ looks like this is a difference between getPeriodicity and getFinePeriodicity
 Fixed a bug in getFinePeriodicity and loop detection seems better now. Still need more extensive testing, but for the sake of a setup that is more encouraging I think I should focus on syncing multiple loops. Maybe try to implement simpleloop?
 
 Then I need to do some cleanup.
+
+# 2021-07-19
+
+The commandline midi recording tool is `arecordmidi`
