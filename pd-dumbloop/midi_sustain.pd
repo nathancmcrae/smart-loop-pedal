@@ -1,0 +1,106 @@
+#N canvas 641 121 1189 606 10;
+#X obj 320 146 pack f f;
+#X obj 320 268 spigot 0;
+#X obj 320 290 stripnote;
+#X obj 657 96 t f f;
+#X obj 274 260 == 0;
+#X obj 684 173 sel 0;
+#X msg 684 195 128;
+#X obj 684 217 t f b;
+#X obj 684 239 until;
+#X obj 684 286 f 0;
+#X obj 721 286 + 1;
+#X msg 699 262 0;
+#X obj 684 308 t f f;
+#X obj 711 356 != 0;
+#X obj 684 381 spigot 0;
+#X msg 684 403 \$1 0;
+#X obj 320 312 pack f f;
+#X floatatom 365 175 5 0 0 1 Sustain_on - -;
+#X obj 804 74 table \$0-notes_sustained 128;
+#X obj 173 288 &&;
+#X obj 173 260 == 0;
+#X obj 711 334 tabread \$0-notes_sustained;
+#X obj 88 356 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
+-1;
+#X msg 122 341 1 \$1;
+#X obj 684 468 tabwrite \$0-notes_sustained;
+#X msg 684 438 \$2 \$1;
+#X obj 122 526 tabwrite \$0-notes_sustained;
+#X obj 229 439 tabwrite \$0-notes_sustained;
+#X msg 229 405 0 \$1;
+#X text 121 543 Note is sustained if we receive its note-off while
+the sustain is on, f 32;
+#X obj 122 312 spigot 0, f 9;
+#X obj 725 195 bng 15 250 50 0 empty empty Sustain_Released 17 7 0
+10 -262144 -1 -1;
+#X text 777 388 When sustain pedal is released \, this reads through
+the table for note states. If the note is active \, it sends a note-off
+and resets its state in the table.;
+#X obj 229 288 spigot 1;
+#X obj 226 57 inlet;
+#X obj 275 57 inlet;
+#X obj 657 47 inlet;
+#X text 223 39 Note;
+#X text 273 39 Velocity;
+#X text 655 28 Sustain;
+#X obj 500 557 outlet;
+#X obj 533 520 outlet;
+#X text 498 574 Note;
+#X text 531 537 Velocity;
+#X obj 500 492 unpack;
+#X obj 657 74 != 0;
+#X text 10 9 Adapted from hurleur's patch Nathan McRae 2019-06;
+#X text 226 458 Note is no longer sustained if we receive its note-on
+(that way \, releasing sustain won't kill notes that are being held).
+, f 34;
+#X text 802 21 keep track of note states in the table using the note
+number as the index. If the pedal is pressed \, note-offs are stripped
+off.;
+#X connect 0 0 1 0;
+#X connect 0 0 33 0;
+#X connect 1 0 2 0;
+#X connect 2 0 16 0;
+#X connect 2 1 16 1;
+#X connect 3 0 17 0;
+#X connect 3 1 5 0;
+#X connect 4 0 33 1;
+#X connect 5 0 6 0;
+#X connect 5 0 31 0;
+#X connect 6 0 7 0;
+#X connect 7 0 8 0;
+#X connect 7 1 11 0;
+#X connect 8 0 9 0;
+#X connect 9 0 10 0;
+#X connect 9 0 12 0;
+#X connect 10 0 9 1;
+#X connect 11 0 9 1;
+#X connect 12 0 14 0;
+#X connect 12 1 21 0;
+#X connect 13 0 14 1;
+#X connect 14 0 15 0;
+#X connect 15 0 25 0;
+#X connect 15 0 44 0;
+#X connect 16 0 28 0;
+#X connect 16 0 44 0;
+#X connect 17 0 1 1;
+#X connect 17 0 19 1;
+#X connect 17 0 4 0;
+#X connect 19 0 30 1;
+#X connect 20 0 19 0;
+#X connect 21 0 13 0;
+#X connect 23 0 26 0;
+#X connect 25 0 24 0;
+#X connect 28 0 27 0;
+#X connect 30 0 23 0;
+#X connect 30 0 22 0;
+#X connect 33 0 28 0;
+#X connect 33 0 44 0;
+#X connect 34 0 0 0;
+#X connect 34 0 30 0;
+#X connect 35 0 0 1;
+#X connect 35 0 20 0;
+#X connect 36 0 45 0;
+#X connect 44 0 40 0;
+#X connect 44 1 41 0;
+#X connect 45 0 3 0;
