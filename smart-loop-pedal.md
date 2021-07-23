@@ -214,3 +214,23 @@ Then I need to do some cleanup.
 # 2021-07-19
 
 The commandline midi recording tool is `arecordmidi`
+
+# 2021-07-21
+
+1626923074.txt caused this?
+```
+/home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/libsmartloop/src/main.zig:647:34: 0x7f1579
+e6edf0 in libsmartloop.src.main.getFinePeriodicity (zigimock)                                           
+    if (glbi(shifts, rough_shifts[start_i])) |start_index| {
+                                 ^
+/home/nathanmcrae/personal_root/projects/smart-loop-pedal-test/pd-midi-mockingbird-2/zigimock.zig:138:59:
+ 0x7f1579e6bd7e in midimock_bang (zigimock)                                                             
+            var periodicity_err = sloop.getFinePeriodicity(std.heap.c_allocator, note_ons[0..obj.note_on_
+buffer.index], notes[0..obj.note_on_buffer.index], overlaps, 50, 100);                                  
+                                                          ^
+Pd: signal 6
+```
+
+Doesn't seem to do it when I run it through the executable. hmmm...
+
+Actually, it seems like 1 note sequences do this

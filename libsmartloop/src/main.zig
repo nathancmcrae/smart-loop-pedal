@@ -629,6 +629,14 @@ pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_
     var rough_periodicity = try getRoughPeriodicity(alloc, x, l, overlaps, delta, window_length);
     const rough_shifts = rough_periodicity.shifts;
 
+    if(rough_shifts.len == 0){
+        const result: GetPeriodicityResult = .{
+            .periodicity_power = 0,
+            .periodicity = 0,
+        };
+        return result;
+    }
+
     // Find max acorrelation on the rough pass to see where we need to search for the actual max
     var max_acorr: u64 = 0;
     var max_acorr_i: u32 = 0;

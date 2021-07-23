@@ -160,8 +160,10 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         //     obj.playback_index = sloop.glbi(ticks, @intCast(u32, obj.playback_tick)) orelse 0;
         //     std.debug.print("playback_tick: {}\nplayback_index: {}\ntick[index]: {}\n", .{obj.playback_tick, obj.playback_index, obj.buffer.tick[obj.playback_index]});
         // } else |err| {}
+        if (obj.playback_period_ms == 0) {
+            return;
+        }
 
-        
         obj.playback_start_time_ms = obj.buffer.time[0];
         obj.playback_iteration = (current_time - obj.playback_start_time_ms) / obj.playback_period_ms;
         const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
