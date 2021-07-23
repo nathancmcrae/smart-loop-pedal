@@ -136,6 +136,7 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
                 } else |err| {}
 
                 obj.playback_period_ms = periodicity.periodicity;
+                mock.outlet_float(obj.loop_time, @intToFloat(f32, periodicity.periodicity));
             } else |err| {
                 std.debug.print("error while getting periodicity: {}\n", .{err});
             }

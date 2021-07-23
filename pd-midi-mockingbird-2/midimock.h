@@ -35,9 +35,7 @@ typedef struct _midimock {
     t_inputs in_current;
     t_inputs in_previous;
     t_outlet *note_out, *velocity_out;
-    // 1 if loop is ready, 0 otherwise
-    // not using this right now
-    t_outlet *loop_ok_out;
+    t_outlet *loop_time;
     // the index in the buffer that we are next going to play from
     uint playback_index;
     ulong playback_period_ms;

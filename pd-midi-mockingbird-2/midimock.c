@@ -24,7 +24,7 @@ midimock_new(){
 
     x->note_out = outlet_new(&x->obj, &s_float);
     x->velocity_out = outlet_new(&x->obj, &s_float);
-    x->loop_ok_out = outlet_new(&x->obj, &s_float);
+    x->loop_time = outlet_new(&x->obj, &s_float);
 
     return (void *)x;
 }
