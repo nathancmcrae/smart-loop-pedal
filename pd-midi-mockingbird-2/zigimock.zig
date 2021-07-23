@@ -34,7 +34,7 @@ fn writeNoteSequence(alloc: *std.mem.Allocator, notes: []u32, note_times: []u32,
 }
 
 export fn midimock_bang(obj: *mock.t_midimock) void {
-    if (obj.start_time_ms == 0){
+    if (obj.start_time_ms == 0) {
         obj.start_time_ms = @intCast(u64, std.time.milliTimestamp());
     }
     const current_time = @intCast(u64, std.time.milliTimestamp()) - obj.start_time_ms;
@@ -85,7 +85,6 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
         var time1 = std.time.nanoTimestamp();
 
-        // try to calculate loop periodicity
         var notes: [mock.BUFFER_LEN]u32 = undefined;
         var note_ons: [mock.BUFFER_LEN]u32 = undefined;
         var i: usize = 0;
@@ -93,29 +92,32 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         while (i < obj.note_on_buffer.index) : (i += 1) {
             if (obj.note_on_buffer.velocity[i] == 0) continue;
             notes[i] = @floatToInt(u32, obj.note_on_buffer.note[i]);
-            note_ons[i] =  @truncate(u32, obj.note_on_buffer.time[i]);
+            note_ons[i] = @truncate(u32, obj.note_on_buffer.time[i]);
             // std.debug.print("note: {}, note_on: {}, time: {}, velocity: {}\n", .{ notes[i], note_ons[i], obj.note_on_buffer.time[i], obj.note_on_buffer.velocity[i] });
         }
 
-        if(obj.note_on_buffer.index > 0) {
+        if (obj.note_on_buffer.index > 0) {
             // Write a file with this note sequence
-
             var all_notes: [mock.BUFFER_LEN]u32 = undefined;
             var all_note_ons: [mock.BUFFER_LEN]u32 = undefined;
 
             var j: usize = 0;
-            while(j < obj.buffer.index) : (j += 1) {
+            while (j < obj.buffer.index) : (j += 1) {
                 all_notes[j] = @floatToInt(u32, obj.buffer.note[j]);
-                all_note_ons[j] =  @truncate(u32, obj.buffer.time[j]);
+                all_note_ons[j] = @truncate(u32, obj.buffer.time[j]);
             }
-            
-            if(std.fmt.allocPrint(std.heap.c_allocator, "recordings/{}.txt", .{ std.time.timestamp() }) ) |filename|{
-                const write_err = writeNoteSequence(std.heap.c_allocator,
-                                                    all_notes[0..obj.buffer.index],
-                                                    all_note_ons[0..obj.buffer.index],
-                                                    obj.buffer.velocity[0..obj.buffer.index],
-                                                    filename);
-                if(write_err) |_| {} else |err| {
+
+            if (std.fmt.allocPrint(std.heap.c_allocator, "recordings/{}.txt", .{std.time.timestamp()})) |filename| {
+                const write_err = writeNoteSequence(std.heap.c_allocator, all_notes[0..obj.buffer.index], all_note_ons[0..obj.buffer.index], obj.buffer.velocity[0..obj.buffer.index], filename);
+                if (write_err) |_| {
+                    var msg = std.fmt.bufPrint(message_slice, "Recorded to {}\x00", .{filename});
+
+                    if (msg) |actual_message| {
+                        mock.post(actual_message.ptr);
+                    } else |err| {
+                        mock.post("Recorded some notes");
+                    }
+                } else |err| {
                     mock.post("error writing recording file");
                 }
             } else |err| {
@@ -177,11 +179,10 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
                 times[j] = @intCast(u32, obj.buffer.time[j]);
             }
             obj.playback_index = sloop.glbi(times, @intCast(u32, playback_time)) orelse 0;
-            if(obj.buffer.time[obj.playback_index] < playback_time) {
-                    obj.playback_index += 1;
+            if (obj.buffer.time[obj.playback_index] < playback_time) {
+                obj.playback_index += 1;
             }
         } else |err| {}
-
     }
 
     // if (obj.in_current.loop != 0) {
@@ -189,12 +190,12 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
     //         obj.playback_index = 0;
     //         obj.playback_start_time_ms = current_time;
     //     } else {
-    if(obj.in_current.listen == 0 and obj.playback_period_ms != 0) {
+    if (obj.in_current.listen == 0 and obj.playback_period_ms != 0) {
         // std.debug.print("playback time: {}, next note: {}\n", .{@mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0], obj.buffer.time[obj.playback_index]});
         const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
         const next_note_time = obj.buffer.time[obj.playback_index];
 
-        if(playback_time > next_note_time and playback_time - next_note_time > 100){
+        if (playback_time > next_note_time and playback_time - next_note_time > 100) {
             // TODO: if there is excessive delay, then reset the playback index?
             // we just want to catch up and don't want to play a ton of notes
             mock.post("Excessive delay during playback");
@@ -209,8 +210,8 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
             // std.debug.print("next tick: {}\n", .{obj.buffer.tick[obj.playback_index]});
         }
         const current_iteration = (current_time + 10 - obj.playback_start_time_ms) / obj.playback_period_ms;
-        if(current_iteration > obj.playback_iteration){
-            std.debug.print("resetting playback; time: {}\n", .{ current_time });
+        if (current_iteration > obj.playback_iteration) {
+            std.debug.print("resetting playback; time: {}\n", .{current_time});
             obj.playback_index = 0;
             obj.playback_iteration = current_iteration;
         }
