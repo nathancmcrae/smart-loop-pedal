@@ -9,6 +9,13 @@ pub const test_file = @embedFile("1622492456.txt");
 
 const verbose: bool = false;
 
+// TODO: replace raw types with these substitutes
+
+/// The type used to represent time in ms
+pub const TimeMs: type = i32;
+
+/// The type used to perform calculations with autocorrelation values
+pub const Acorr: type = u64;
 fn glbi_rec(list: []u32, value: u32, ilow: u32, ihigh: u32) u32 {
     const length: u32 = @intCast(u32, list.len);
 
@@ -726,6 +733,66 @@ test "fine periodicity test" {
     std.debug.print("time3-time2: {} ns\n", .{time3 - time2});
     std.debug.print("fine power: {}, periodicity: {}\n", fine_periodicity);
     std.debug.print("power: {}, periodicity: {}\n", periodicity);
+}
+
+/// Result of matchPolyrhythmPeriod
+const MatchedPolyrhythm = struct {
+    /// The required secondary period
+    matching_period: f64,
+    /// shorter_period * factor + period_error == longer_period
+    period_error: TimeMs,
+};
+
+/// Given primary and secondary periods, find an adjusted secondary period to make them an exact
+/// polyrythm i.e. when played together they will never drift out-of-sync. If the primary period is
+/// longer, then the adjusted secondary period may not be an integer.
+///
+/// Both primary and secondary must be positive.
+pub fn matchPolyrhythmPeriod(primary: TimeMs, secondary: TimeMs) !MatchedPolyrhythm {
+    if (primary <= 0 or secondary <= 0)
+        return error.ArgumentError;
+
+    if (primary > secondary) {
+        const remainder: TimeMs = @mod(primary, secondary);
+        const period_error: TimeMs =
+            if (remainder > @divFloor(secondary, 2)) remainder - secondary else remainder;
+
+        const factor: TimeMs =
+            if (period_error < 0) @divFloor(primary, secondary) + 1 else @divFloor(primary, secondary);
+        const matching_period = @intToFloat(f64, primary) / @intToFloat(f64, factor);
+        return MatchedPolyrhythm{
+            .matching_period = matching_period,
+            .period_error = period_error,
+        };
+    } else {
+        const remainder: TimeMs = @mod(secondary, primary);
+        const period_error: TimeMs = if (remainder > @divFloor(primary, 2)) remainder - primary else remainder;
+
+        const factor = if (period_error < 0) @divFloor(secondary, primary) + 1 else @divFloor(secondary, primary);
+        const matching_period = @intToFloat(f64, factor * primary);
+        return MatchedPolyrhythm{
+            .matching_period = matching_period,
+            .period_error = period_error,
+        };
+    }
+}
+
+fn testMatchPolyrhythmPeriod(a: TimeMs, b: TimeMs, expected: f64) void {
+    const result_err = matchPolyrhythmPeriod(a, b);
+    if (result_err) |result| {
+        std.testing.expect(result.matching_period == expected);
+    } else |err| unreachable;
+}
+
+test "matchPolyrhythmPeriod basics" {
+    testMatchPolyrhythmPeriod(5, 1, 1);
+    testMatchPolyrhythmPeriod(5, 2, 2.5);
+    testMatchPolyrhythmPeriod(5, 3, 2.5);
+    testMatchPolyrhythmPeriod(5, 4, 5);
+    testMatchPolyrhythmPeriod(5, 5, 5);
+    testMatchPolyrhythmPeriod(5, 6, 5);
+    testMatchPolyrhythmPeriod(5, 7, 5);
+    testMatchPolyrhythmPeriod(5, 8, 10);
 }
 
 pub fn main() !void {
