@@ -21,6 +21,7 @@ midimock_new(){
     // active 'note' input
     inlet_new(&x->obj, &x->obj, &s_float, &s_float);
     floatinlet_new(&x->obj, &x->in_current.velocity);
+    floatinlet_new(&x->obj, &x->in_current.control_period_ms);
 
     x->note_out = outlet_new(&x->obj, &s_float);
     x->velocity_out = outlet_new(&x->obj, &s_float);
