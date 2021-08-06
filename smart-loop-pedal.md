@@ -246,3 +246,5 @@ aconnect 'Logidy UMI3':'Logidy UMI3 MIDI 1' 'Pure Data':'Pure Data Midi-In 1'
 etc.
 
 Use `aconnect --list` to see what's already connected for debug
+
+https://digitaldub.wordpress.com/2009/12/16/linux-audio-session-scripting/
