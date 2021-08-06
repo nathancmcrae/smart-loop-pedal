@@ -234,3 +234,15 @@ Pd: signal 6
 Doesn't seem to do it when I run it through the executable. hmmm...
 
 Actually, it seems like 1 note sequences do this
+
+# 2021-08-05
+
+To connect midi ports together, use aconnect:
+
+```bash
+aconnect 'Logidy UMI3':'Logidy UMI3 MIDI 1' 'Pure Data':'Pure Data Midi-In 1'
+```
+
+etc.
+
+Use `aconnect --list` to see what's already connected for debug
