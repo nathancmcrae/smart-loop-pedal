@@ -137,8 +137,30 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
                     mock.post(actual_message.ptr);
                 } else |err| {}
 
-                obj.playback_period_ms = periodicity.periodicity;
-                mock.outlet_float(obj.loop_time, @intToFloat(f32, periodicity.periodicity));
+                // Try to match with the external controlling loop
+                if(obj.in_current.control_period_ms != 0){
+                    const control_period = @floatToInt(sloop.TimeMs, obj.in_current.control_period_ms);
+                    // TODO: remove cast, periodicity should be in TimeMs
+                    const secondary = @intCast(sloop.TimeMs, periodicity.periodicity);
+                    const match_err = sloop.matchPolyrhythmPeriod(control_period, secondary);
+                    if(match_err) |match| {
+                        // TODO: what should the limit be?
+                        if(match.period_error < 200) {
+                            obj.playback_period_ms = match.matching_period;
+                            std.debug.print("detected periodicity: {}, matching period: {}",
+                                            .{periodicity.periodicity, match.matching_period});
+                        } else {
+                            // TODO: What should happen when the error is too large?
+                        }
+                    } else |err|{
+                        // one or both were zero
+                        std.debug.print("control_period: {}, secondary: {}\n",
+                                        .{control_period, secondary});
+                    }
+                } else {
+                    obj.playback_period_ms = @intToFloat(f32, periodicity.periodicity);
+                    mock.outlet_float(obj.loop_time, @intToFloat(f32, periodicity.periodicity));
+                }
             } else |err| {
                 std.debug.print("error while getting periodicity: {}\n", .{err});
             }
@@ -151,25 +173,14 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
         std.debug.print("time2-time1: {} ns\n", .{time2 - time1});
 
-        // start looping
-        // obj.playback_tick = @mod((obj.tick - obj.buffer.tick[0]) , (obj.playback_period_ms / @floatToInt(u32, obj.in_current.tick_ms))) + obj.buffer.tick[0] - 23;
-        // var ticks_err = std.heap.c_allocator.alloc(u32, obj.note_on_buffer.index);
-        // if (ticks_err) |ticks| {
-        //     defer std.heap.c_allocator.free(ticks);
-        //     var j: usize = 0;
-        //     while(j < obj.note_on_buffer.index) : (j += 1){
-        //         ticks[j] = @intCast(u32, obj.buffer.tick[j]);
-        //     }
-        //     obj.playback_index = sloop.glbi(ticks, @intCast(u32, obj.playback_tick)) orelse 0;
-        //     std.debug.print("playback_tick: {}\nplayback_index: {}\ntick[index]: {}\n", .{obj.playback_tick, obj.playback_index, obj.buffer.tick[obj.playback_index]});
-        // } else |err| {}
         if (obj.playback_period_ms == 0) {
             return;
         }
 
+        const playback_period = @floatToInt(u64, obj.playback_period_ms);
         obj.playback_start_time_ms = obj.buffer.time[0];
-        obj.playback_iteration = (current_time - obj.playback_start_time_ms) / obj.playback_period_ms;
-        const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
+        obj.playback_iteration = (current_time - obj.playback_start_time_ms) / playback_period;
+        const playback_time = @mod(current_time - obj.playback_start_time_ms, playback_period) + obj.buffer.time[0];
         const times_err = std.heap.c_allocator.alloc(u32, obj.buffer.index);
         if (times_err) |times| {
             defer std.heap.c_allocator.free(times);
@@ -192,7 +203,8 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
     //     } else {
     if (obj.in_current.listen == 0 and obj.playback_period_ms != 0) {
         // std.debug.print("playback time: {}, next note: {}\n", .{@mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0], obj.buffer.time[obj.playback_index]});
-        const playback_time = @mod(current_time - obj.playback_start_time_ms, obj.playback_period_ms) + obj.buffer.time[0];
+        const playback_period = @floatToInt(u64, obj.playback_period_ms);
+        const playback_time = @mod(current_time - obj.playback_start_time_ms, playback_period) + obj.buffer.time[0];
         const next_note_time = obj.buffer.time[obj.playback_index];
 
         if (playback_time > next_note_time and playback_time - next_note_time > 100) {
@@ -209,7 +221,7 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
             // std.debug.print("next tick: {}\n", .{obj.buffer.tick[obj.playback_index]});
         }
-        const current_iteration = (current_time + 10 - obj.playback_start_time_ms) / obj.playback_period_ms;
+        const current_iteration = (current_time + 10 - obj.playback_start_time_ms) / playback_period;
         if (current_iteration > obj.playback_iteration) {
             std.debug.print("resetting playback; time: {}\n", .{current_time});
             obj.playback_index = 0;

@@ -37,7 +37,7 @@ typedef struct _midimock {
     t_outlet *loop_time;
     // the index in the buffer that we are next going to play from
     uint playback_index;
-    ulong playback_period_ms;
+    t_float playback_period_ms;
     // The time the object started (unix time in ms)
     ulong start_time_ms;
     ulong playback_start_time_ms;

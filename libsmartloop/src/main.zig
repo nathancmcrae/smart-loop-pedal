@@ -738,7 +738,7 @@ test "fine periodicity test" {
 /// Result of matchPolyrhythmPeriod
 const MatchedPolyrhythm = struct {
     /// The required secondary period
-    matching_period: f64,
+    matching_period: f32,
     /// shorter_period * factor + period_error == longer_period
     period_error: TimeMs,
 };
@@ -759,7 +759,7 @@ pub fn matchPolyrhythmPeriod(primary: TimeMs, secondary: TimeMs) !MatchedPolyrhy
 
         const factor: TimeMs =
             if (period_error < 0) @divFloor(primary, secondary) + 1 else @divFloor(primary, secondary);
-        const matching_period = @intToFloat(f64, primary) / @intToFloat(f64, factor);
+        const matching_period = @intToFloat(f32, primary) / @intToFloat(f32, factor);
         return MatchedPolyrhythm{
             .matching_period = matching_period,
             .period_error = period_error,
@@ -769,7 +769,7 @@ pub fn matchPolyrhythmPeriod(primary: TimeMs, secondary: TimeMs) !MatchedPolyrhy
         const period_error: TimeMs = if (remainder > @divFloor(primary, 2)) remainder - primary else remainder;
 
         const factor = if (period_error < 0) @divFloor(secondary, primary) + 1 else @divFloor(secondary, primary);
-        const matching_period = @intToFloat(f64, factor * primary);
+        const matching_period = @intToFloat(f32, factor * primary);
         return MatchedPolyrhythm{
             .matching_period = matching_period,
             .period_error = period_error,
