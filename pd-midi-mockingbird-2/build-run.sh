@@ -13,6 +13,17 @@ sleep 1
 aconnect 'Logidy UMI3':'Logidy UMI3 MIDI 1' 'Pure Data':'Pure Data Midi-In 1'
 aconnect 'UM-ONE':'UM-ONE MIDI 1' 'Pure Data':'Pure Data Midi-In 1'
 aconnect --list
+
+if [[ ! $# -gt 0 ]]
+then
+    sess_path=recordings/session_$(date +%s).midi
+    arecordmidi --port 'UM-ONE':'UM-ONE MIDI 1','Logidy UMI3':'Logidy UMI3 MIDI 1' "$sess_path" &
+    echo "recording to $sess_path"
+else
+    aplaymidi --port 'Pure Data':'Pure Data Midi-In 1' "$1" &
+    echo "playing back $1"
+fi
+
 read foo
 
 kill $(jobs -p)
