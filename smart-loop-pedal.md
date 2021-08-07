@@ -248,3 +248,10 @@ etc.
 Use `aconnect --list` to see what's already connected for debug
 
 https://digitaldub.wordpress.com/2009/12/16/linux-audio-session-scripting/
+
+# 2021-08-07
+
+- This seems like an important thread for pd MIDI IO: https://github.com/pure-data/pure-data/issues/399
+- [ ] Need to be able to route MIDI recordings into my setup to be able to reproduce issues
+- [ ] My pd sustain pedal will cancel notes coming out of the smartloop object that it just recorded into. How to avoid this?
+- [ ] externally-controlled loops are playing long durations of silence when looping, though are otherwise in-sync. Check what region of time (relative to `obj.start_time_ms`) the loop spans and what region of time the playback spans.
