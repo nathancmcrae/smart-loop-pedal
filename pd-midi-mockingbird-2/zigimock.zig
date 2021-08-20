@@ -38,6 +38,10 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         obj.start_time_ms = @intCast(u64, std.time.milliTimestamp());
     }
     const current_time = @intCast(u64, std.time.milliTimestamp()) - obj.start_time_ms;
+    defer {
+        obj.in_previous = obj.in_current;
+        obj.previous_bang_time = current_time;
+    }
 
     if (obj.in_current.listen != 0) {
         if (obj.in_previous.listen == 0) {
@@ -229,8 +233,6 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
         }
     }
 
-    obj.in_previous = obj.in_current;
-    obj.previous_bang_time = current_time;
 }
 
 export fn midimock_float(obj: *mock.t_midimock, value: f32) void {
