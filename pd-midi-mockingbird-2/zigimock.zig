@@ -148,11 +148,13 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
                     const secondary = @intCast(sloop.TimeMs, periodicity.periodicity);
                     const match_err = sloop.matchPolyrhythmPeriod(control_period, secondary);
                     if(match_err) |match| {
+                        std.debug.print("detected periodicity: {}, matching period: {}\n",
+                                        .{periodicity.periodicity, match.matching_period});
+                        std.debug.print("external period: {}\n", .{control_period});
+
                         // TODO: what should the limit be?
                         if(match.period_error < 200) {
                             obj.playback_period_ms = match.matching_period;
-                            std.debug.print("detected periodicity: {}, matching period: {}",
-                                            .{periodicity.periodicity, match.matching_period});
                         } else {
                             // TODO: What should happen when the error is too large?
                         }
