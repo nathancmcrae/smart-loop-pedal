@@ -131,6 +131,8 @@ export fn midimock_bang(obj: *mock.t_midimock) void {
 
         var overlaps_err = sloop.get_sequence_self_overlaps(std.heap.c_allocator, note_ons[0..obj.note_on_buffer.index]);
         if (overlaps_err) |overlaps| {
+            // TODO: Do we have a leak if overlaps_err is an error? If so, how do we get access
+            // to the things we need to free?
             defer std.heap.c_allocator.free(overlaps.shifts);
             defer std.heap.c_allocator.free(overlaps.next_is);
 
