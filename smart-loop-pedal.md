@@ -255,3 +255,13 @@ https://digitaldub.wordpress.com/2009/12/16/linux-audio-session-scripting/
 - [ ] Need to be able to route MIDI recordings into my setup to be able to reproduce issues
 - [ ] My pd sustain pedal will cancel notes coming out of the smartloop object that it just recorded into. How to avoid this?
 - [ ] externally-controlled loops are playing long durations of silence when looping, though are otherwise in-sync. Check what region of time (relative to `obj.start_time_ms`) the loop spans and what region of time the playback spans.
+
+# 2021-09-27
+
+- Refactoring
+  - [ ] rename functions to match zig convention
+  - [ ] rename variables for sequences
+      Convention for sequences: x, l for now
+    - Or maybe do struct of arrays for type?
+  - [ ] Add more tests
+  - [ ] Break up bang function into more manageable pieces
