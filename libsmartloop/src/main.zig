@@ -16,6 +16,11 @@ pub const TimeMs: type = i32;
 
 /// The type used to perform calculations with autocorrelation values
 pub const Acorr: type = u64;
+
+/// The type used for label (i.e. notes)
+pub const Label: type = u32;
+
+// TODO: parameterize input type; output usize
 fn glbi_rec(list: []u32, value: u32, ilow: u32, ihigh: u32) u32 {
     const length: u32 = @intCast(u32, list.len);
 
@@ -793,6 +798,45 @@ test "matchPolyrhythmPeriod basics" {
     testMatchPolyrhythmPeriod(5, 6, 5);
     testMatchPolyrhythmPeriod(5, 7, 5);
     testMatchPolyrhythmPeriod(5, 8, 10);
+}
+
+pub const ImpulseSequence = struct {
+    times: []TimeMs,
+    labels: []Label,
+};
+
+/// Caller owns result
+pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs) std.mem.Allocator.Error!ImpulseSequence {
+    std.debug.assert(x.len == l.len);
+
+    var result = ImpulseSequence{
+        .times = try alloc.alloc(TimeMs, x.len),
+        .labels = try alloc.alloc(Label, l.len),
+    };
+
+    // TODO: populate result with sorted times%periodicity
+
+    var a = [_]TimeMs{ 0, 1, 2, 3 };
+    var b = [_]Label{ 0, 1, 0, 1 };
+    return ImpulseSequence{
+        .times = a[0..3],
+        .labels = b[0..3],
+    };
+}
+
+test "averagePeriodicSequence basics" {
+    var x = [_]TimeMs{ 0, 1, 2, 3 };
+    var l = [_]Label{ 0, 1, 0, 1 };
+
+    var result_err = averagePeriodicSequence(std.testing.allocator, &x, &l, 1);
+    if (result_err) |result| {
+        defer {
+            std.testing.allocator.free(result.times);
+            std.testing.allocator.free(result.labels);
+        }
+    } else |err| {
+        std.debug.print("Oops, memry err", .{});
+    }
 }
 
 pub fn main() !void {
