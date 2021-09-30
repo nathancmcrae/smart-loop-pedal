@@ -814,8 +814,36 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
         .labels = try alloc.alloc(Label, l.len),
     };
 
-    // TODO: populate result with sorted times%periodicity
+    const Impulse = struct {
+        time: TimeMs,
+        label: Label,
+        // whether this impulse has already been merged with others
+        merged: bool,
+    };
+    // Sort function for Impulse; TODO: extract
+    const impl = comptime struct {
+        fn inner(context: void, a: Impulse, b: Impulse) bool {
+            _ = context;
+            return a.time < b.time;
+        }
+    };
 
+    var buffer = try alloc.alloc(Impulse, x.len);
+    defer alloc.free(buffer);
+
+    var i: usize = 0;
+    while(i < x.len) : (i += 1) {
+        buffer[i].time = @mod(x[i], periodicity);
+        buffer[i].label = l[i];
+    }
+
+    std.sort.sort(Impulse, buffer, {}, comptime impl.inner);
+
+    // TODO: scan a window through the buffer and merge nearby impulses into their average impulse.
+    // Note: scan window will have to be ~2x the merge window so we don't accidentally leave out
+    // some impulses that should be included in a merge.
+    // Note: need to handle wrapping at the edges as well.
+    
     var a = [_]TimeMs{ 0, 1, 2, 3 };
     var b = [_]Label{ 0, 1, 0, 1 };
     return ImpulseSequence{
@@ -837,6 +865,12 @@ test "averagePeriodicSequence basics" {
     } else |err| {
         std.debug.print("Oops, memry err", .{});
     }
+
+    // TODO: Create base sequence, loop it a few times, then check that the average
+    // coincides with the original
+    
+    // TODO: Same as above, but add noise and check that it's close to the original before
+    // adding noise
 }
 
 pub fn main() !void {
