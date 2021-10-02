@@ -806,7 +806,7 @@ pub const ImpulseSequence = struct {
 };
 
 /// Caller owns result
-pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs) std.mem.Allocator.Error!ImpulseSequence {
+pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs, window: TimeMs) std.mem.Allocator.Error!ImpulseSequence {
     std.debug.assert(x.len == l.len);
 
     var result = ImpulseSequence{
@@ -831,8 +831,11 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
     var buffer = try alloc.alloc(Impulse, x.len);
     defer alloc.free(buffer);
 
-    var i: usize = 0;
-    while(i < x.len) : (i += 1) {
+    for (x) |x_i, i| {
+        std.debug.print("x[{}] == {}\n", .{i, x[i]});
+        if( i > 0 ) {
+            std.debug.assert(x_i >= x[i - 1]);
+        }
         buffer[i].time = @mod(x[i], periodicity);
         buffer[i].label = l[i];
     }
@@ -843,20 +846,20 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
     // Note: scan window will have to be ~2x the merge window so we don't accidentally leave out
     // some impulses that should be included in a merge.
     // Note: need to handle wrapping at the edges as well.
-    
-    var a = [_]TimeMs{ 0, 1, 2, 3 };
-    var b = [_]Label{ 0, 1, 0, 1 };
-    return ImpulseSequence{
-        .times = a[0..3],
-        .labels = b[0..3],
-    };
+
+    // TODO: Actually return the right thing
+    for (buffer) |impulse, i| {
+        result.times[i] = impulse.time;
+        result.labels[i] = impulse.label;
+    }
+    return result;
 }
 
 test "averagePeriodicSequence basics" {
     var x = [_]TimeMs{ 0, 1, 2, 3 };
     var l = [_]Label{ 0, 1, 0, 1 };
 
-    var result_err = averagePeriodicSequence(std.testing.allocator, &x, &l, 1);
+    var result_err = averagePeriodicSequence(std.testing.allocator, &x, &l, 1, 1);
     if (result_err) |result| {
         defer {
             std.testing.allocator.free(result.times);
@@ -868,9 +871,59 @@ test "averagePeriodicSequence basics" {
 
     // TODO: Create base sequence, loop it a few times, then check that the average
     // coincides with the original
-    
+
     // TODO: Same as above, but add noise and check that it's close to the original before
     // adding noise
+}
+
+test "averagePeriodicSequence random sequence" {
+    comptime const base_length: usize = 40;
+    comptime const length: usize = base_length * 4;
+
+    var x_base: [base_length]TimeMs = undefined;
+    var l_base: [base_length]Label = undefined;
+
+    var x: [length]TimeMs = undefined;
+    var l: [length]Label = undefined;
+
+    var prng = std.rand.DefaultPrng.init(0);
+    const rand = &prng.random;
+
+    for (x_base) |x_i, i| {
+        const prev = if (i == 0) 0 else x_base[i - 1];
+        x_base[i] = rand.intRangeAtMost(TimeMs, 0, 1023) + prev;
+        l_base[i] = rand.intRangeAtMost(Label, 0, 123);
+    }
+    // Since first note doesn't start on 0, sequence duration is the timeat which the first note
+    // would be placed for the first repetition.
+    const periodicity = x_base[x_base.len - 1] + x_base[0];
+
+    for (x) |x_i, i| {
+        const prev = if (i == 0) 0 else x[i - 1];
+        const prev_base = if (i == 0) 0 else x_base[@mod(i - 1, base_length)];
+        const curr_base = x_base[@mod(i, base_length)];
+        const diff_base = if (curr_base > prev_base) curr_base - prev_base else curr_base + periodicity - prev_base;
+        std.debug.print("prev: {}, prev_base: {}\n", .{prev, prev_base});
+        std.debug.print("x_base[{}] == {}\n", .{@mod(i, base_length), x_base[@mod(i, base_length)]});
+        x[i] = prev + diff_base;
+        l[i] = l_base[@mod(i, base_length)];
+        std.debug.print("x[{}] = {}\n", .{i, x[i]});
+    }
+
+    var result = try averagePeriodicSequence(std.testing.allocator, x[0..(x.len - 1)], l[0..(l.len - 1)], periodicity, 50);
+    defer {
+        std.testing.allocator.free(result.times);
+        std.testing.allocator.free(result.labels);
+    }
+
+    for (result.times) |time, i| {
+        if (i > 0) {
+            std.testing.expect(time >= result.times[i - 1]);
+            std.testing.expect(time < periodicity);
+        }
+    }
+
+    std.debug.print("periodicity: {}\n", .{periodicity});
 }
 
 pub fn main() !void {
