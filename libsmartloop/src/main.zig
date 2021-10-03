@@ -805,9 +805,36 @@ pub const ImpulseSequence = struct {
     labels: []Label,
 };
 
+// The distance between two values given a modulus
+pub fn distanceModulus(a: TimeMs, b: TimeMs, mod: TimeMs) TimeMs {
+    return std.math.min(@mod(a - b, mod), @mod(b - a, mod));
+}
+
+test "distanceModulus" {
+    std.testing.expectEqual(distanceModulus(0, 4, 5), 1);
+    std.testing.expectEqual(distanceModulus(0, 0, 5), 0);
+    std.testing.expectEqual(distanceModulus(0, 5, 5), 0);
+    std.testing.expectEqual(distanceModulus(0, 10, 5), 0);
+    std.testing.expectEqual(distanceModulus(0, 11, 5), 1);
+    std.testing.expectEqual(distanceModulus(0, 12, 5), 2);
+    std.testing.expectEqual(distanceModulus(0, 13, 5), 2);
+    std.testing.expectEqual(distanceModulus(0, 14, 5), 1);
+}
+
+// TODO: is there a way to do this without unsafe casting.
+// This isn't important for it's use-case, but it would be nicer that way.
+pub fn indexModDecrement(index: usize, mod: usize) usize {
+    return @intCast(usize, @mod(@intCast(isize, index) - 1, @intCast(isize, mod)));
+}
+
 /// Caller owns result
-pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs, window: TimeMs) std.mem.Allocator.Error!ImpulseSequence {
+pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs, merge_window: TimeMs) std.mem.Allocator.Error!ImpulseSequence {
     std.debug.assert(x.len == l.len);
+    if(periodicity < merge_window) {
+        // This function shouldn't be called if periodicity is less than window. But since this is
+        // the case, try to return a result, but complain about it.
+        std.debug.warn("Error: averagePeriodicSequence shouldn't be called with periodicity ({}) < merge_window", .{periodicity});
+    }
 
     var result = ImpulseSequence{
         .times = try alloc.alloc(TimeMs, x.len),
@@ -832,7 +859,6 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
     defer alloc.free(buffer);
 
     for (x) |x_i, i| {
-        std.debug.print("x[{}] == {}\n", .{i, x[i]});
         if( i > 0 ) {
             std.debug.assert(x_i >= x[i - 1]);
         }
@@ -847,6 +873,26 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
     // some impulses that should be included in a merge.
     // Note: need to handle wrapping at the edges as well.
 
+    var left_edge_i: usize = 0;
+    while(distanceModulus(x[indexModDecrement(left_edge_i, x.len)], 0, periodicity) < merge_window) {
+        left_edge_i = indexModDecrement(left_edge_i, x.len);
+
+        // Edge case: periodicity is less than merge_window * 2
+        if(left_edge_i == 0)
+            break;
+    }
+    std.debug.assert(distanceModulus(x[0], x[left_edge_i], periodicity) < merge_window);
+
+    var right_edge_i:usize = 0;
+    while(distanceModulus(x[@mod(right_edge_i + 1, x.len)], 0, periodicity) < merge_window) {
+        right_edge_i = @mod(right_edge_i + 1, x.len);
+
+        if(right_edge_i == 0)
+            break;
+    }
+    std.debug.assert(distanceModulus(x[0], x[right_edge_i], periodicity) < merge_window);
+
+    
     // TODO: Actually return the right thing
     for (buffer) |impulse, i| {
         result.times[i] = impulse.time;
@@ -903,11 +949,8 @@ test "averagePeriodicSequence random sequence" {
         const prev_base = if (i == 0) 0 else x_base[@mod(i - 1, base_length)];
         const curr_base = x_base[@mod(i, base_length)];
         const diff_base = if (curr_base > prev_base) curr_base - prev_base else curr_base + periodicity - prev_base;
-        std.debug.print("prev: {}, prev_base: {}\n", .{prev, prev_base});
-        std.debug.print("x_base[{}] == {}\n", .{@mod(i, base_length), x_base[@mod(i, base_length)]});
         x[i] = prev + diff_base;
         l[i] = l_base[@mod(i, base_length)];
-        std.debug.print("x[{}] = {}\n", .{i, x[i]});
     }
 
     var result = try averagePeriodicSequence(std.testing.allocator, x[0..(x.len - 1)], l[0..(l.len - 1)], periodicity, 50);
