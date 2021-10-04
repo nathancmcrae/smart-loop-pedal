@@ -639,6 +639,10 @@ test "rough periodicity test" {
 pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_overlap_results, delta: u32, window_length: u32) !GetPeriodicityResult {
     const shifts = overlaps.shifts;
     var rough_periodicity = try getRoughPeriodicity(alloc, x, l, overlaps, delta, window_length);
+    defer {
+        alloc.free(rough_periodicity.shifts);
+        alloc.free(rough_periodicity.acorrs);
+    }
     const rough_shifts = rough_periodicity.shifts;
 
     if(rough_shifts.len == 0){
