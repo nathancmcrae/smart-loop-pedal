@@ -809,6 +809,62 @@ pub const ImpulseSequence = struct {
     labels: []Label,
 };
 
+const Impulse = struct {
+    time: TimeMs,
+    label: Label,
+    // whether this impulse has already been merged with others
+    merged: bool,
+};
+
+const ImpulseWindowIterator = struct {
+    left_index: usize,
+    right_index: usize,
+    index: usize,
+    modulus: usize,
+    fn next(self: *ImpulseWindowIterator) ?usize {
+        self.index = (self.index + 1) % self.modulus;
+        std.debug.assert(self.index != self.left_index);
+
+        if (self.index == self.right_index) {
+            return null;
+        } else {
+            return self.index;
+        }
+    }
+};
+
+pub fn WindowIterator(window_radius: TimeMs, index: usize, seq: []Impulse, periodicity: TimeMs) ImpulseWindowIterator {
+    var left_edge_i: usize = index;
+
+    while (distanceModulus(seq[left_edge_i].time, seq[index].time, periodicity) < window_radius) {
+        left_edge_i = indexModDecrement(left_edge_i, seq.len);
+
+        // Edge case: periodicity is less than window_radius * 2 + 1
+        if (left_edge_i == index)
+            break;
+    }
+
+    var right_edge_i: usize = index;
+    while (distanceModulus(seq[right_edge_i].time, seq[index].time, periodicity) < window_radius) {
+        right_edge_i = (right_edge_i + 1) % seq.len;
+
+        if (right_edge_i == index)
+            break;
+    }
+
+    return ImpulseWindowIterator{
+        .left_index = left_edge_i,
+        .right_index = right_edge_i,
+        .index = left_edge_i,
+        .modulus = seq.len,
+    };
+}
+
+test "WindowIterator" {
+    // TODO: fuzz with a bunch of random sequences; for each of them, check that the iterator
+    // produces all indices within the window and none outside the window
+}
+
 // The distance between two values given a modulus
 pub fn distanceModulus(a: TimeMs, b: TimeMs, mod: TimeMs) TimeMs {
     return std.math.min(@mod(a - b, mod), @mod(b - a, mod));
@@ -827,6 +883,7 @@ test "distanceModulus" {
 
 // TODO: is there a way to do this without unsafe casting.
 // This isn't important for it's use-case, but it would be nicer that way.
+/// (index - 1) % mod; wraps some casting to make this work for usize
 pub fn indexModDecrement(index: usize, mod: usize) usize {
     return @intCast(usize, @mod(@intCast(isize, index) - 1, @intCast(isize, mod)));
 }
@@ -845,16 +902,8 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
         .labels = try alloc.alloc(Label, l.len),
     };
 
-    const Impulse = struct {
-        time: TimeMs,
-        label: Label,
-        // whether this impulse has already been merged with others
-        merged: bool,
-    };
-    // Sort function for Impulse; TODO: extract
     const impl = comptime struct {
         fn inner(context: void, a: Impulse, b: Impulse) bool {
-            _ = context;
             return a.time < b.time;
         }
     };
@@ -877,26 +926,16 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
     // some impulses that should be included in a merge.
     // Note: need to handle wrapping at the edges as well.
 
-    var left_edge_i: usize = 0;
-    while(distanceModulus(x[indexModDecrement(left_edge_i, x.len)], 0, periodicity) < merge_window) {
-        left_edge_i = indexModDecrement(left_edge_i, x.len);
-
-        // Edge case: periodicity is less than merge_window * 2
-        if(left_edge_i == 0)
-            break;
+    var iter = WindowIterator(merge_window, 0, buffer, periodicity);
+    while(iter.next()) |i| {
+        std.debug.print("i: {}, time: {}, label: {}, %dist: {}\n", .{
+            i,
+            buffer[i].time,
+            buffer[i].label,
+            distanceModulus(buffer[i].time, buffer[0].time, periodicity),
+        });
     }
-    std.debug.assert(distanceModulus(x[0], x[left_edge_i], periodicity) < merge_window);
 
-    var right_edge_i:usize = 0;
-    while(distanceModulus(x[@mod(right_edge_i + 1, x.len)], 0, periodicity) < merge_window) {
-        right_edge_i = @mod(right_edge_i + 1, x.len);
-
-        if(right_edge_i == 0)
-            break;
-    }
-    std.debug.assert(distanceModulus(x[0], x[right_edge_i], periodicity) < merge_window);
-
-    
     // TODO: Actually return the right thing
     for (buffer) |impulse, i| {
         result.times[i] = impulse.time;
@@ -906,17 +945,13 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
 }
 
 test "averagePeriodicSequence basics" {
-    var x = [_]TimeMs{ 0, 1, 2, 3 };
-    var l = [_]Label{ 0, 1, 0, 1 };
+    var x = [_]TimeMs{ 0, 1, 2, 3, 4, 5, 6, 7 };
+    var l = [_]Label{ 0, 1, 2, 3, 0, 1, 2, 3 };
 
-    var result_err = averagePeriodicSequence(std.testing.allocator, &x, &l, 1, 1);
-    if (result_err) |result| {
-        defer {
-            std.testing.allocator.free(result.times);
-            std.testing.allocator.free(result.labels);
-        }
-    } else |err| {
-        std.debug.print("Oops, memry err", .{});
+    var result = try averagePeriodicSequence(std.testing.allocator, &x, &l, 4, 1);
+    defer {
+        std.testing.allocator.free(result.times);
+        std.testing.allocator.free(result.labels);
     }
 
     // TODO: Create base sequence, loop it a few times, then check that the average
@@ -957,7 +992,7 @@ test "averagePeriodicSequence random sequence" {
         l[i] = l_base[@mod(i, base_length)];
     }
 
-    var result = try averagePeriodicSequence(std.testing.allocator, x[0..(x.len - 1)], l[0..(l.len - 1)], periodicity, 50);
+    var result = try averagePeriodicSequence(std.testing.allocator, x[0..(x.len - 1)], l[0..(l.len - 1)], periodicity, 2047);
     defer {
         std.testing.allocator.free(result.times);
         std.testing.allocator.free(result.labels);
