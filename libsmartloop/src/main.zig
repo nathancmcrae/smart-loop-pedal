@@ -213,7 +213,7 @@ pub fn get_sequence_self_overlaps(alloc: *Allocator, original: []const u32) !sel
         if (verbose) std.debug.print("x[{}]: {}\n", .{ i, value });
         n[i] = @truncate(u32, i) + 1;
         if (i < d.len) {
-            if(verbose) std.debug.print("original[{} + 1]: {}\n", .{ i, original[i + 1] });
+            if (verbose) std.debug.print("original[{} + 1]: {}\n", .{ i, original[i + 1] });
             std.debug.assert(original[i + 1] >= original[i]);
             d[i] = original[i + 1] - original[i];
         }
@@ -379,7 +379,7 @@ pub fn parseNoteFile(alloc: *Allocator, contents: []const u8) ![]NoteEvent {
         if (char == '\n') {
             // std.debug.print("{}\n", .{contents[line_start..i]});
             var line_try = parseNoteLine(contents[line_start..i]);
-            if(line_try) |line| {
+            if (line_try) |line| {
                 try notes.append(line);
             } else |err| {
                 // oh well
@@ -645,7 +645,7 @@ pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_
     }
     const rough_shifts = rough_periodicity.shifts;
 
-    if(rough_shifts.len == 0){
+    if (rough_shifts.len == 0) {
         const result: GetPeriodicityResult = .{
             .periodicity_power = 0,
             .periodicity = 0,
@@ -693,10 +693,12 @@ pub fn getFinePeriodicity(alloc: *Allocator, x: []u32, l: []u32, overlaps: self_
             // rough. We take care that this is an index into overlaps.shifts (not rough_shifts).
             var actual_max_acorr_i: u32 = fine_max_acorr_i orelse glbi(shifts, rough_shifts[max_acorr_i]).?;
 
-            if (verbose) std.debug.print("Shift[{}]: {}, power: {}\n", .{
-                actual_max_acorr_i,
-                overlaps.shifts[actual_max_acorr_i],
-                fine_max_acorr });
+            if (verbose)
+                std.debug.print("Shift[{}]: {}, power: {}\n", .{
+                    actual_max_acorr_i,
+                    overlaps.shifts[actual_max_acorr_i],
+                    fine_max_acorr,
+                });
 
             const result: GetPeriodicityResult = .{
                 .periodicity_power = fine_max_acorr,
@@ -891,7 +893,7 @@ pub fn indexModDecrement(index: usize, mod: usize) usize {
 /// Caller owns result
 pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs, merge_window: TimeMs) std.mem.Allocator.Error!ImpulseSequence {
     std.debug.assert(x.len == l.len);
-    if(periodicity < merge_window) {
+    if (periodicity < merge_window) {
         // This function shouldn't be called if periodicity is less than window. But since this is
         // the case, try to return a result, but complain about it.
         std.debug.warn("Error: averagePeriodicSequence shouldn't be called with periodicity ({}) < merge_window", .{periodicity});
@@ -912,7 +914,7 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
     defer alloc.free(buffer);
 
     for (x) |x_i, i| {
-        if( i > 0 ) {
+        if (i > 0) {
             std.debug.assert(x_i >= x[i - 1]);
         }
         buffer[i].time = @mod(x[i], periodicity);
