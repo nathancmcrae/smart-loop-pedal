@@ -835,23 +835,26 @@ const ImpulseWindowIterator = struct {
     }
 };
 
-pub fn WindowIterator(window_radius: TimeMs, index: usize, seq: []Impulse, periodicity: TimeMs) ImpulseWindowIterator {
+pub fn WindowIterator(window_radius: TimeMs, index: usize, seq: []Impulse, periodicity: TimeMs) !ImpulseWindowIterator {
     var left_edge_i: usize = index;
 
-    while (distanceModulus(seq[left_edge_i].time, seq[index].time, periodicity) < window_radius) {
+    while (distanceModulus(seq[left_edge_i].time, seq[index].time, periodicity) <= window_radius) {
+        std.debug.print("left_edge_i: {}\n", .{left_edge_i});
         left_edge_i = indexModDecrement(left_edge_i, seq.len);
 
         // Edge case: periodicity is less than window_radius * 2 + 1
-        if (left_edge_i == index)
-            break;
+        if (left_edge_i == index) {
+            return error.ArgumentError;
+        }
     }
 
     var right_edge_i: usize = index;
-    while (distanceModulus(seq[right_edge_i].time, seq[index].time, periodicity) < window_radius) {
+    while (distanceModulus(seq[right_edge_i].time, seq[index].time, periodicity) <= window_radius) {
         right_edge_i = (right_edge_i + 1) % seq.len;
 
-        if (right_edge_i == index)
-            break;
+        if (right_edge_i == index) {
+            return error.ArgumentError;
+        }
     }
 
     return ImpulseWindowIterator{
@@ -863,8 +866,68 @@ pub fn WindowIterator(window_radius: TimeMs, index: usize, seq: []Impulse, perio
 }
 
 test "WindowIterator" {
-    // TODO: fuzz with a bunch of random sequences; for each of them, check that the iterator
+    // Fuzz with a bunch of random sequences; for each of them, check that the iterator
     // produces all indices within the window and none outside the window
+    var prng = std.rand.DefaultPrng.init(0);
+    const rand = &prng.random;
+
+    const test_verbose: bool = verbose or true;
+
+    var i: u32 = 0;
+    while (i < 50) : (i += 1) {
+        var seq = try std.testing.allocator.alloc(Impulse, rand.intRangeAtMost(usize, 10, 200));
+        defer std.testing.allocator.free(seq);
+
+        var acc: TimeMs = 0;
+        for (seq) |_, seq_i| {
+            acc += rand.intRangeAtMost(TimeMs, 0, 1023);
+            seq[seq_i].time = acc;
+        }
+
+        const window_center = rand.intRangeAtMost(usize, 0, seq.len - 1);
+        const window_radius = rand.intRangeAtMost(TimeMs, 0, @divFloor(acc, 4));
+
+        if (verbose) {
+            std.debug.print("seq {}, periodicity: {}, window_radius: {}\n", .{
+                i,
+                acc,
+                window_radius,
+            });
+        }
+
+        var window_points = std.ArrayList(usize).init(std.testing.allocator);
+        defer window_points.deinit();
+
+        // Check that all the elements from the iterator are within the window
+        var iter = try WindowIterator(window_radius, window_center, seq, acc);
+        while (iter.next()) |seq_i| {
+            try window_points.append(seq_i);
+            if (verbose) {
+                std.debug.print("dist(seq[{}], seq[{}]) == {}\n", .{
+                    window_center,
+                    seq_i,
+                    distanceModulus(seq[window_center].time, seq[seq_i].time, acc),
+                });
+            }
+            std.testing.expect(distanceModulus(seq[window_center].time, seq[seq_i].time, acc) <= window_radius);
+        }
+
+        std.sort.sort(usize, window_points.items, {}, comptime std.sort.asc(usize));
+
+        const S = struct {
+            fn order_usize(context: void, lhs: usize, rhs: usize) std.math.Order {
+                _ = context;
+                return std.math.order(lhs, rhs);
+            }
+        };
+
+        // Check that all the elements not from the iterator are outside the window
+        for(seq) |_, seq_i| {
+            if(std.sort.binarySearch(usize, seq_i, window_points.items, {}, S.order_usize)) |_| {} else {
+                std.testing.expect(distanceModulus(seq[window_center].time, seq[seq_i].time, acc) > window_radius);
+            }
+        }
+    }
 }
 
 // The distance between two values given a modulus
@@ -891,7 +954,7 @@ pub fn indexModDecrement(index: usize, mod: usize) usize {
 }
 
 /// Caller owns result
-pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs, merge_window: TimeMs) std.mem.Allocator.Error!ImpulseSequence {
+pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, periodicity: TimeMs, merge_window: TimeMs) !ImpulseSequence {
     std.debug.assert(x.len == l.len);
     if (periodicity < merge_window) {
         // This function shouldn't be called if periodicity is less than window. But since this is
@@ -928,8 +991,8 @@ pub fn averagePeriodicSequence(alloc: *Allocator, x: []TimeMs, l: []Label, perio
     // some impulses that should be included in a merge.
     // Note: need to handle wrapping at the edges as well.
 
-    var iter = WindowIterator(merge_window, 0, buffer, periodicity);
-    while(iter.next()) |i| {
+    var iter = try WindowIterator(merge_window, 0, buffer, periodicity);
+    while (iter.next()) |i| {
         std.debug.print("i: {}, time: {}, label: {}, %dist: {}\n", .{
             i,
             buffer[i].time,
